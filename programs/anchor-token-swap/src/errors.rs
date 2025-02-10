@@ -1,4 +1,4 @@
-use anchor_lang::error_code;
+use anchor_lang::prelude::*;
 
 #[error_code]
 pub enum SwapError {

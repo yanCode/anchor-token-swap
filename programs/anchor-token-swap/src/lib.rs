@@ -6,7 +6,8 @@ use anchor_spl::{
     token_2022::ID as TOKEN_2022_PROGRAM_ID,
     token_interface::{Mint, TokenAccount},
 };
-use errors::SwapError;
+pub use curve::*;
+pub use errors::*;
 pub use state::*;
 
 declare_id!("Bspu3p7dUX27mCSG5jaQkqoVwA6V2fMB9zZNpfu2dY9J");
@@ -19,6 +20,14 @@ pub mod anchor_token_swap {
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         msg!("Greetings from: {:?}", ctx.program_id);
         let swap = &mut ctx.accounts.swap;
+        let swap_key = swap.key();
+        let seeds = &[swap_key.as_ref()];
+        let (swap_authority, _) = Pubkey::find_program_address(seeds, ctx.program_id);
+        require_keys_eq!(
+            swap_authority,
+            ctx.accounts.authority.key(),
+            SwapError::InvalidProgramAddress
+        );
         // swap_curve
         //     .calculator
         //     .validate_supply(token_a.amount, token_b.amount)?;
