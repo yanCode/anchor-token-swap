@@ -1,3 +1,13 @@
+use anchor_lang::prelude::*;
+use spl_math::{checked_ceil_div::CheckedCeilDiv, precise_number::PreciseNumber};
+
+use crate::SwapError;
+
+use super::{
+    map_zero_to_none, CurveCalculator, RoundDirection, SwapWithoutFeesResult, TradeDirection,
+    TradingTokenResult, INITIAL_SWAP_POOL_AMOUNT,
+};
+#[derive(Debug)]
 pub struct ConstantProductCurve;
 
 /// The constant product swap calculation, factored out of its class for reuse.
@@ -165,7 +175,7 @@ impl CurveCalculator for ConstantProductCurve {
         swap(source_amount, swap_source_amount, swap_destination_amount)
     }
 
-    fn validate(&self) -> Result<(), SwapError> {
+    fn validate(&self) -> Result<()> {
         Ok(())
     }
 
@@ -232,15 +242,15 @@ impl CurveCalculator for ConstantProductCurve {
     }
 
     fn new_pool_supply(&self) -> u128 {
-        super::calculator::INITIAL_SWAP_POOL_AMOUNT
+        INITIAL_SWAP_POOL_AMOUNT
     }
 
-    fn validate_supply(&self, token_a_amount: u64, token_b_amount: u64) -> Result<(), SwapError> {
+    fn validate_supply(&self, token_a_amount: u64, token_b_amount: u64) -> Result<()> {
         if token_a_amount == 0 {
-            return Err(SwapError::EmptySupply);
+            return err!(SwapError::EmptySupply);
         }
         if token_b_amount == 0 {
-            return Err(SwapError::EmptySupply);
+            return err!(SwapError::EmptySupply);
         }
         Ok(())
     }

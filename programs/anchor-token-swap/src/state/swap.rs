@@ -1,6 +1,8 @@
 use anchor_lang::prelude::*;
 use enum_dispatch::enum_dispatch;
 
+use crate::{Fees, SwapCurve};
+
 #[enum_dispatch]
 pub trait SwapState {
     /// Is the swap initialized, with data written to it
@@ -71,6 +73,12 @@ pub struct SwapV1 {
 
     /// Pool token account to receive trading and / or withdrawal fees
     pub pool_fee_account: Pubkey,
+    /// All fee information
+    pub fees: Fees,
+
+    // Swap curve parameters, to be unpacked and used by the SwapCurve, which
+    // calculates swaps, deposits, and withdrawals
+    // pub swap_curve: SwapCurve,
 }
 
 impl SwapState for SwapV1 {

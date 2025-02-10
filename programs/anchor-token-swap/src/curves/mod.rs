@@ -2,6 +2,7 @@ pub mod constant_product;
 use crate::errors::SwapError;
 use anchor_lang::prelude::*;
 
+use constant_product::ConstantProductCurve;
 use spl_math::precise_number::PreciseNumber;
 use std::fmt::Debug;
 
@@ -10,13 +11,13 @@ use std::fmt::Debug;
 /// Note that on Ethereum, Uniswap uses the geometric mean of all provided
 /// input amounts, and Balancer uses 100 * 10 ^ 18.
 pub const INITIAL_SWAP_POOL_AMOUNT: u128 = 1_000_000_000;
-
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct SwapCurve {
     pub curve_type: CurveType,
 }
 impl SwapCurve {
-    pub fn calculator(&self) -> Result<()> {
-        Ok(())
+    pub fn calculator(&self) -> impl CurveCalculator {
+        ConstantProductCurve {}
     }
 }
 
@@ -164,4 +165,13 @@ pub struct SwapWithoutFeesResult {
     pub source_amount_swapped: u128,
     /// Amount of destination token swapped
     pub destination_amount_swapped: u128,
+}
+
+/// Helper function for mapping to SwapError::CalculationFailure
+pub fn map_zero_to_none(x: u128) -> Option<u128> {
+    if x == 0 {
+        None
+    } else {
+        Some(x)
+    }
 }

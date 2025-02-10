@@ -1,13 +1,15 @@
-mod curve;
+mod curves;
 mod errors;
+mod fees;
 mod state;
 use anchor_lang::prelude::*;
 use anchor_spl::{
     token_2022::ID as TOKEN_2022_PROGRAM_ID,
     token_interface::{Mint, TokenAccount},
 };
-pub use curve::*;
+pub use curves::*;
 pub use errors::*;
+pub use fees::*;
 pub use state::*;
 
 declare_id!("Bspu3p7dUX27mCSG5jaQkqoVwA6V2fMB9zZNpfu2dY9J");
@@ -17,7 +19,7 @@ pub mod anchor_token_swap {
 
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+    pub fn initialize(ctx: Context<Initialize>, swap_curve: SwapCurve, fees: Fees) -> Result<()> {
         msg!("Greetings from: {:?}", ctx.program_id);
         let swap = &mut ctx.accounts.swap;
         let swap_key = swap.key();
@@ -28,23 +30,23 @@ pub mod anchor_token_swap {
             ctx.accounts.authority.key(),
             SwapError::InvalidProgramAddress
         );
-        // swap_curve
-        //     .calculator
-        //     .validate_supply(token_a.amount, token_b.amount)?;
-        // let obj = SwapV1 {
-        //     is_initialized: true,
-        //     bump_seed: ctx.bumps.swap,
-        //     token_program_id,
-        //     token_a: *token_a_info.key,
-        //     token_b: *token_b_info.key,
-        //     pool_mint: *pool_mint_info.key,
-        //     token_a_mint: token_a.mint,
-        //     token_b_mint: token_b.mint,
-        //     pool_fee_account: *fee_account_info.key,
-        //     fees,
-        //     swap_curve,
-        // };
-        // **swap = obj;
+        let calculator = swap_curve.calculator();
+
+        calculator.validate_supply(ctx.accounts.token_a.amount, ctx.accounts.token_b.amount)?;
+        let obj = SwapV1 {
+            is_initialized: true,
+            bump_seed: ctx.bumps.swap,
+            token_program_id: TOKEN_2022_PROGRAM_ID,
+            token_a: *ctx.accounts.token_a.to_account_info().key,
+            token_b: *ctx.accounts.token_b.to_account_info().key,
+            pool_mint: *ctx.accounts.pool_mint.to_account_info().key,
+            token_a_mint: ctx.accounts.token_a.mint,
+            token_b_mint: ctx.accounts.token_b.mint,
+            pool_fee_account: *ctx.accounts.fee_account.to_account_info().key,
+            fees,
+            // swap_curve,
+        };
+        **swap = obj;
 
         Ok(())
     }
