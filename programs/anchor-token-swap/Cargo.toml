@@ -11,12 +11,13 @@ name = "anchor_token_swap"
 [features]
 cpi = ["no-entrypoint"]
 default = []
-idl-build = ["anchor-lang/idl-build"]
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 
 [dependencies]
 anchor-lang = {git = "https://github.com/coral-xyz/anchor", rev = "a7a23eea"}
+anchor-spl = {git = "https://github.com/coral-xyz/anchor", rev = "a7a23eea"}
 enum_dispatch = "0.3.13"
 spl-math = {version = "0.3.0", features = ["no-entrypoint"]}
