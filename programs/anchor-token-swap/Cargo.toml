@@ -1,0 +1,22 @@
+[package]
+description = "Created with Anchor"
+edition = "2021"
+name = "anchor-token-swap"
+version = "0.1.0"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "anchor_token_swap"
+
+[features]
+cpi = ["no-entrypoint"]
+default = []
+idl-build = ["anchor-lang/idl-build"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+
+[dependencies]
+anchor-lang = {git = "https://github.com/coral-xyz/anchor", rev = "a7a23eea"}
+enum_dispatch = "0.3.13"
+spl-math = {version = "0.3.0", features = ["no-entrypoint"]}
