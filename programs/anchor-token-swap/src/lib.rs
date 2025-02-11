@@ -16,11 +16,9 @@ declare_id!("Bspu3p7dUX27mCSG5jaQkqoVwA6V2fMB9zZNpfu2dY9J");
 
 #[program]
 pub mod anchor_token_swap {
-
     use super::*;
 
     pub fn initialize(ctx: Context<Initialize>, swap_curve: SwapCurve, fees: Fees) -> Result<()> {
-        msg!("Greetings from: {:?}", ctx.program_id);
         let swap = &mut ctx.accounts.swap;
         let swap_key = swap.key();
         let seeds = &[swap_key.as_ref()];
@@ -31,7 +29,8 @@ pub mod anchor_token_swap {
             SwapError::InvalidProgramAddress
         );
         let calculator = swap_curve.calculator();
-
+        fees.validate()?;
+        calculator.validate()?;
         calculator.validate_supply(ctx.accounts.token_a.amount, ctx.accounts.token_b.amount)?;
         let obj = SwapV1 {
             is_initialized: true,

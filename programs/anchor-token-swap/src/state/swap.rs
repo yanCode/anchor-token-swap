@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use enum_dispatch::enum_dispatch;
 
-use crate::{Fees, SwapCurve};
+use crate::Fees;
 
 #[enum_dispatch]
 pub trait SwapState {
@@ -75,7 +75,6 @@ pub struct SwapV1 {
     pub pool_fee_account: Pubkey,
     /// All fee information
     pub fees: Fees,
-
     // Swap curve parameters, to be unpacked and used by the SwapCurve, which
     // calculates swaps, deposits, and withdrawals
     // pub swap_curve: SwapCurve,
