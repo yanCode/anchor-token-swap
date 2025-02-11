@@ -17,14 +17,17 @@ declare_id!("Bspu3p7dUX27mCSG5jaQkqoVwA6V2fMB9zZNpfu2dY9J");
 
 #[program]
 pub mod anchor_token_swap {
+
     use super::*;
+
     #[access_control(
         validate_swap_constraints(
             &swap_curve,
             &fees,
             ctx.accounts.fee_account.owner,
-            None,
+            None
         )
+        validate_mint_uncloseable(&ctx)
     )]
     pub fn initialize(ctx: Context<Initialize>, swap_curve: SwapCurve, fees: Fees) -> Result<()> {
         let swap = &mut ctx.accounts.swap;
@@ -40,9 +43,9 @@ pub mod anchor_token_swap {
         fees.validate()?;
         calculator.validate()?;
         calculator.validate_supply(ctx.accounts.token_a.amount, ctx.accounts.token_b.amount)?;
-        let obj = SwapV1 {
+        **swap = SwapV1 {
             is_initialized: true,
-            bump_seed: ctx.bumps.swap,
+            bump_seed: ctx.bumps.authority,
             token_program_id: TOKEN_2022_PROGRAM_ID,
             token_a: *ctx.accounts.token_a.to_account_info().key,
             token_b: *ctx.accounts.token_b.to_account_info().key,
@@ -53,7 +56,6 @@ pub mod anchor_token_swap {
             fees,
             // swap_curve,
         };
-        **swap = obj;
 
         Ok(())
     }
@@ -68,11 +70,13 @@ pub struct Initialize<'info> {
     #[account(
         init,
         payer = payer,
-        space = SwapV1::INIT_SPACE + 8,
-        seeds = [b"swap_v1".as_ref()],
-        bump,
+        space = SwapV1::INIT_SPACE + 8
     )]
     pub swap: Account<'info, SwapV1>,
+    #[account(
+        seeds = [swap.key().as_ref()],
+        bump,
+    )]
     pub authority: AccountInfo<'info>,
     #[account(
         token::token_program = TOKEN_2022_PROGRAM_ID,
@@ -115,9 +119,5 @@ pub struct Initialize<'info> {
 
 #[derive(Accounts)]
 pub struct PeekCurve<'info> {
-    #[account(
-        seeds = [b"swap_v1".as_ref()],
-        bump,
-    )]
     pub swap: Account<'info, SwapV1>,
 }
