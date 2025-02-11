@@ -10,7 +10,7 @@ use super::{
 /// input amounts, and Balancer uses 100 * 10 ^ 18.
 
 pub const INITIAL_SWAP_POOL_AMOUNT: u128 = 1_000_000_000;
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq)]
 pub struct SwapCurve {
     pub curve_type: CurveType,
 }
@@ -26,7 +26,7 @@ impl SwapCurve {
     }
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq)]
 pub enum CurveType {
     /// Uniswap-style constant product curve, invariant = token_a_amount *
     /// token_b_amount

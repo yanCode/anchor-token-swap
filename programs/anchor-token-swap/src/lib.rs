@@ -2,6 +2,7 @@ mod curves;
 mod errors;
 mod fees;
 mod state;
+mod swap_constraints;
 use anchor_lang::prelude::*;
 use anchor_spl::{
     token_2022::ID as TOKEN_2022_PROGRAM_ID,
@@ -11,13 +12,20 @@ pub use curves::*;
 pub use errors::*;
 pub use fees::*;
 pub use state::*;
-
+pub use swap_constraints::*;
 declare_id!("Bspu3p7dUX27mCSG5jaQkqoVwA6V2fMB9zZNpfu2dY9J");
 
 #[program]
 pub mod anchor_token_swap {
     use super::*;
-
+    #[access_control(
+        validate_swap_constraints(
+            &swap_curve,
+            &fees,
+            ctx.accounts.fee_account.owner,
+            None,
+        )
+    )]
     pub fn initialize(ctx: Context<Initialize>, swap_curve: SwapCurve, fees: Fees) -> Result<()> {
         let swap = &mut ctx.accounts.swap;
         let swap_key = swap.key();
