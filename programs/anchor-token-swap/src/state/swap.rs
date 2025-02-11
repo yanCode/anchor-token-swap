@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use enum_dispatch::enum_dispatch;
 
-use crate::Fees;
+use crate::{Fees, SwapCurve};
 
 #[enum_dispatch]
 pub trait SwapState {
@@ -30,9 +30,9 @@ pub trait SwapState {
     fn check_pool_fee_info(&self, pool_fee_info: &AccountInfo) -> Result<()>;
 
     // Fees associated with swap
-    // fn fees(&self) -> &Fees;
+    fn fees(&self) -> &Fees;
     // /// Curve associated with swap
-    // fn swap_curve(&self) -> &SwapCurve;
+    fn swap_curve(&self) -> &SwapCurve;
 }
 
 /// All versions of SwapState
@@ -73,11 +73,11 @@ pub struct SwapV1 {
 
     /// Pool token account to receive trading and / or withdrawal fees
     pub pool_fee_account: Pubkey,
-    /// All fee information
+    // All fee information
     pub fees: Fees,
-    // Swap curve parameters, to be unpacked and used by the SwapCurve, which
-    // calculates swaps, deposits, and withdrawals
-    // pub swap_curve: SwapCurve,
+    // // Swap curve parameters, to be unpacked and used by the SwapCurve, which
+    // // calculates swaps, deposits, and withdrawals
+    pub swap_curve: SwapCurve,
 }
 
 impl SwapState for SwapV1 {
@@ -134,11 +134,11 @@ impl SwapState for SwapV1 {
         // }
         Ok(())
     }
-    // fn fees(&self) -> &Fees {
-    //     &self.fees
-    // }
+    fn fees(&self) -> &Fees {
+        &self.fees
+    }
 
-    // fn swap_curve(&self) -> &SwapCurve {
-    //     &self.swap_curve
-    // }
+    fn swap_curve(&self) -> &SwapCurve {
+        &self.swap_curve
+    }
 }
