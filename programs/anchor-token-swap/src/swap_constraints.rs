@@ -20,8 +20,8 @@ pub struct SwapConstraints<'a> {
 }
 
 impl<'a> SwapConstraints<'a> {
-    pub fn validate_curve(&self, swap_curve: &SwapCurve) -> Result<()> {
-        if !self.valid_curve_types.contains(&swap_curve.curve_type) {
+    pub fn validate_curve(&self, curve_type: &CurveType) -> Result<()> {
+        if !self.valid_curve_types.contains(curve_type) {
             return err!(SwapError::UnsupportedCurveType);
         }
         Ok(())
@@ -67,7 +67,7 @@ pub const SWAP_CONSTRAINTS: Option<SwapConstraints> = {
 };
 
 pub fn validate_swap_constraints(
-    swap_curve: &SwapCurve,
+    curve_type: &CurveType,
     fees: &Fees,
     fee_account_owner: Pubkey,
     constraints: Option<SwapConstraints>,
@@ -76,7 +76,7 @@ pub fn validate_swap_constraints(
         if let Some(owner_key) = constraints.owner_key {
             require_keys_eq!(owner_key, fee_account_owner, SwapError::InvalidOwner);
         }
-        constraints.validate_curve(swap_curve)?;
+        constraints.validate_curve(curve_type)?;
         constraints.validate_fees(fees)?;
     }
     Ok(())

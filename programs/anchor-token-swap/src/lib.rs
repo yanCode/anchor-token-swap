@@ -24,14 +24,14 @@ pub mod anchor_token_swap {
 
     #[access_control(
         validate_swap_constraints(
-            &swap_curve,
+            &curve_type,
             &fees,
             ctx.accounts.fee_account.owner,
             None
         )
         validate_mint_uncloseable(&ctx)
     )]
-    pub fn initialize(ctx: Context<Initialize>, swap_curve: SwapCurve, fees: Fees) -> Result<()> {
+    pub fn initialize(ctx: Context<Initialize>, curve_type: CurveType, fees: Fees) -> Result<()> {
         let swap_v1 = &mut ctx.accounts.swap_v1;
         let swap_key = swap_v1.key();
         let seeds = &[swap_key.as_ref()];
@@ -41,7 +41,8 @@ pub mod anchor_token_swap {
             ctx.accounts.authority.key(),
             SwapError::InvalidProgramAddress
         );
-        let calculator = swap_curve.calculator();
+        let swap_curve = SwapCurve::new(curve_type);
+        let calculator = swap_curve.calculator;
         fees.validate()?;
         calculator.validate()?;
         calculator.validate_supply(ctx.accounts.token_a.amount, ctx.accounts.token_b.amount)?;
@@ -56,7 +57,7 @@ pub mod anchor_token_swap {
             token_b_mint: ctx.accounts.token_b.mint,
             pool_fee_account: *ctx.accounts.fee_account.to_account_info().key,
             fees,
-            swap_curve,
+            curve_type,
         };
 
         Ok(())

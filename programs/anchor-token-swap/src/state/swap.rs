@@ -1,9 +1,8 @@
 use anchor_lang::prelude::*;
-use enum_dispatch::enum_dispatch;
 
-use crate::{Fees, SwapCurve};
+use crate::{CurveType, Fees, SwapCurve};
 
-#[enum_dispatch]
+
 pub trait SwapState {
     /// Is the swap initialized, with data written to it
     fn is_initialized(&self) -> bool;
@@ -32,11 +31,11 @@ pub trait SwapState {
     // Fees associated with swap
     fn fees(&self) -> &Fees;
     // /// Curve associated with swap
-    fn swap_curve(&self) -> &SwapCurve;
+    fn swap_curve(&self) -> SwapCurve;
 }
 
 /// All versions of SwapState
-#[enum_dispatch(SwapState)]
+// #[enum_dispatch(SwapState)]
 pub enum SwapVersion {
     /// Latest version, used for all new swaps
     SwapV1,
@@ -75,9 +74,9 @@ pub struct SwapV1 {
     pub pool_fee_account: Pubkey,
     // All fee information
     pub fees: Fees,
-    // // Swap curve parameters, to be unpacked and used by the SwapCurve, which
-    // // calculates swaps, deposits, and withdrawals
-    pub swap_curve: SwapCurve,
+    // curve_type to construct CurveCalculator, which can be used by the SwapCurve, that
+    // calculates swaps, deposits, and withdrawals
+    pub curve_type: CurveType,
 }
 
 impl SwapState for SwapV1 {
@@ -138,7 +137,7 @@ impl SwapState for SwapV1 {
         &self.fees
     }
 
-    fn swap_curve(&self) -> &SwapCurve {
-        &self.swap_curve
+    fn swap_curve(&self) -> SwapCurve {
+        SwapCurve::new(self.curve_type)
     }
 }

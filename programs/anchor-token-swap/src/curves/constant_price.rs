@@ -9,7 +9,7 @@ use super::{
 };
 
 /// ConstantPriceCurve struct implementing CurveCalculator
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Copy)]
 pub struct ConstantPriceCurve {
     /// Amount of token A required to get 1 token B
     pub token_b_price: u64,

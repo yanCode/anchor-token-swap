@@ -3,8 +3,8 @@ use anchor_lang::prelude::*;
 use crate::Fees;
 
 use super::{
-    constant_product::ConstantProductCurve, ConstantPriceCurve, CurveCalculator, OffsetCurve,
-    SwapWithoutFeesResult, TradeDirection,
+    ConstantPriceCurve, ConstantProductCurve, CurveCalculator, OffsetCurve, SwapWithoutFeesResult,
+    TradeDirection,
 };
 
 /// Initial amount of pool tokens for swap contract, hard-coded to something
@@ -13,18 +13,23 @@ use super::{
 /// input amounts, and Balancer uses 100 * 10 ^ 18.
 
 pub const INITIAL_SWAP_POOL_AMOUNT: u128 = 1_000_000_000;
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, InitSpace)]
+
 pub struct SwapCurve {
     pub curve_type: CurveType,
+    pub calculator: Box<dyn CurveCalculator>,
 }
 impl SwapCurve {
-    pub fn calculator(&self) -> Box<dyn CurveCalculator> {
-        match self.curve_type {
+    pub fn new(curve_type: CurveType) -> Self {
+        let calculator: Box<dyn CurveCalculator> = match curve_type {
             CurveType::ConstantProduct => Box::new(ConstantProductCurve {}),
             CurveType::ConstantPrice { token_b_price } => {
                 Box::new(ConstantPriceCurve { token_b_price })
             }
             CurveType::Offset { token_b_offset } => Box::new(OffsetCurve { token_b_offset }),
+        };
+        SwapCurve {
+            curve_type: curve_type,
+            calculator,
         }
     }
     /// Subtract fees and calculate how much destination token will be provided
@@ -47,7 +52,7 @@ impl SwapCurve {
         let SwapWithoutFeesResult {
             source_amount_swapped,
             destination_amount_swapped,
-        } = self.calculator().swap_without_fees(
+        } = self.calculator.swap_without_fees(
             source_amount_less_fees,
             swap_source_amount,
             swap_destination_amount,
@@ -67,7 +72,7 @@ impl SwapCurve {
     }
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, InitSpace)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, InitSpace, Copy)]
 pub enum CurveType {
     /// Uniswap-style constant product curve, invariant = token_a_amount *
     /// token_b_amount
