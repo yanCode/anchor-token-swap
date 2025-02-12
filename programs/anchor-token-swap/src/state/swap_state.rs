@@ -1,7 +1,8 @@
 use anchor_lang::prelude::*;
 
-use crate::{CurveType, Fees, SwapCurve};
+use crate::curves::{CurveType, SwapCurve};
 
+use super::Fees;
 
 pub trait SwapState {
     /// Is the swap initialized, with data written to it

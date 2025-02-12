@@ -1,8 +1,6 @@
-use crate::{CurveType, Fees, Initialize, SwapCurve, SwapError};
+use crate::{curves::CurveType, state::Fees, Initialize, SwapError};
 use anchor_lang::prelude::*;
-use anchor_spl::{
-    token::Mint, token_2022::spl_token_2022::extension::mint_close_authority::MintCloseAuthority,
-};
+use anchor_spl::token_2022::spl_token_2022::extension::mint_close_authority::MintCloseAuthority;
 
 /// Encodes fee constraints, used in multihost environments where the program
 /// may be used by multiple frontends, to ensure that proper fees are being

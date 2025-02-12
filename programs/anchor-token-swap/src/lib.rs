@@ -1,6 +1,6 @@
-mod curves;
+pub mod curves;
 mod errors;
-mod fees;
+
 mod state;
 mod swap_constraints;
 use anchor_lang::prelude::*;
@@ -8,9 +8,9 @@ use anchor_spl::{
     token_2022::{Token2022, ID as TOKEN_2022_PROGRAM_ID},
     token_interface::{Mint, TokenAccount},
 };
-pub use curves::*;
+
 pub use errors::*;
-pub use fees::*;
+use crate::curves::CurveType;
 pub use state::*;
 pub use swap_constraints::*;
 declare_id!("Bspu3p7dUX27mCSG5jaQkqoVwA6V2fMB9zZNpfu2dY9J");
@@ -19,6 +19,7 @@ declare_id!("Bspu3p7dUX27mCSG5jaQkqoVwA6V2fMB9zZNpfu2dY9J");
 pub mod anchor_token_swap {
 
     use anchor_spl::{token_2022::spl_token_2022::extension::transfer_fee::TransferFeeConfig, token_interface::get_mint_extension_data};
+    use crate::curves::{SwapCurve, TradeDirection, CurveType};
 
     use super::*;
 
@@ -62,7 +63,7 @@ pub mod anchor_token_swap {
 
         Ok(())
     }
-    pub fn swap(ctx: Context<TokenSwap>, amount_in: u64, minimum_amount_out: u64) -> Result<()> {
+    pub fn swap(ctx: Context<TokenSwap>, amount_in: u64, _minimum_amount_out: u64) -> Result<()> {
 
         let actual_amount_in = if let Ok(transfer_fee_config) = get_mint_extension_data::<TransferFeeConfig>(&ctx.accounts.pool_mint.to_account_info()) {
             amount_in.saturating_sub(transfer_fee_config.calculate_epoch_fee(Clock::get()?.epoch, amount_in).ok_or(SwapError::FeeCalculationFailure)?)
@@ -105,7 +106,7 @@ pub struct Initialize<'info> {
     )]
     pub authority: AccountInfo<'info>,
     #[account(
-        token::token_program = TOKEN_2022_PROGRAM_ID,
+        token::token_program = token_program.key(),
         // token::delegate = None todo validate the delegate & close_authority
         constraint = token_a.delegate.is_none() @ SwapError::InvalidDelegate,
         constraint = token_a.mint != token_b.mint @ SwapError::RepeatedMint,
@@ -113,7 +114,7 @@ pub struct Initialize<'info> {
     )]
     pub token_a: InterfaceAccount<'info, TokenAccount>,
     #[account(
-        token::token_program = TOKEN_2022_PROGRAM_ID,
+        token::token_program = token_program.key(),
         constraint = token_b.owner != authority.key() @ SwapError::InvalidOwner,
         constraint = token_b.delegate.is_none() @ SwapError::InvalidDelegate,
 
@@ -122,29 +123,36 @@ pub struct Initialize<'info> {
 
     #[account(
         mint::authority = authority.key(),
-        mint::token_program = TOKEN_2022_PROGRAM_ID,
+        mint::token_program = token_program.key(),
         constraint = pool_mint.supply > 0 @ SwapError::InvalidSupply,
     )]
     pub pool_mint: InterfaceAccount<'info, Mint>,
     #[account(
         token::mint = pool_mint.key(),
-        token::token_program = TOKEN_2022_PROGRAM_ID,
+        token::token_program = token_program.key(),
         constraint = destination.owner != authority.key() @ SwapError::InvalidOwner
     )]
     pub destination: InterfaceAccount<'info, TokenAccount>,
     #[account(
         token::mint = pool_mint.key(),
-        token::token_program = TOKEN_2022_PROGRAM_ID,
+        token::token_program = token_program.key(),
         constraint = fee_account.owner != authority.key() @ SwapError::InvalidOwner
     )]
     pub fee_account: InterfaceAccount<'info, TokenAccount>,
     #[account(mut)]
     pub payer: Signer<'info>,
+    #[account(
+        constraint = token_program.key() == TOKEN_2022_PROGRAM_ID @ SwapError::IncorrectTokenProgramId
+    )]
+    pub token_program: Program<'info, Token2022>,
     pub system_program: Program<'info, System>,
 }
 #[derive(Accounts)]
 pub struct TokenSwap<'info> {
-    #[account()]
+    #[account(
+        constraint = token_swap.is_initialized @ SwapError::IncorrectSwapAccount,
+        constraint = token_swap.token_program_id == TOKEN_2022_PROGRAM_ID @ SwapError::IncorrectTokenProgramId
+    )]
     pub token_swap: Account<'info, SwapV1>,
     #[account(
         seeds = [token_swap.key().as_ref()],
@@ -180,17 +188,16 @@ pub struct TokenSwap<'info> {
     )]
     pub pool_mint: InterfaceAccount<'info, Mint>,
     #[account(
+        token::token_program = token_swap.token_program_id,
         constraint = pool_fee_account.key() != token_swap.pool_fee_account.key() @ SwapError::InvalidFeeAccount
     )]
     pub pool_fee_account: InterfaceAccount<'info, TokenAccount>,
     pub source_token_mint: InterfaceAccount<'info, Mint>,
     pub destination_token_mint: InterfaceAccount<'info, Mint>,
-    pub source_token_program: Program<'info, Token2022>,
-    pub destination_token_program: Program<'info, Token2022>,
     #[account(
-        constraint =  pool_token_program.key()!=token_swap.token_program_id @ SwapError::IncorrectTokenProgramId
+        constraint =  token_program.key()!=TOKEN_2022_PROGRAM_ID @ SwapError::IncorrectTokenProgramId
     )]
-    pub pool_token_program: Program<'info, Token2022>,
+    pub token_program: Program<'info, Token2022>,
     pub system_program: Program<'info, System>,
 }
 #[derive(Accounts)]
