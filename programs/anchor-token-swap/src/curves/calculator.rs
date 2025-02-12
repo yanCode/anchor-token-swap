@@ -112,6 +112,7 @@ pub trait CurveCalculator: Debug {
     ) -> Option<PreciseNumber>;
 }
 
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum TradeDirection {
     /// Input token A, output token B
     AtoB,
