@@ -1,6 +1,9 @@
 use crate::{curves::CurveType, state::Fees, Initialize, SwapError};
 use anchor_lang::prelude::*;
-use anchor_spl::token_2022::spl_token_2022::extension::mint_close_authority::MintCloseAuthority;
+use anchor_spl::{
+    token_2022::spl_token_2022::extension::mint_close_authority::MintCloseAuthority,
+    token_interface::Mint,
+};
 
 /// Encodes fee constraints, used in multihost environments where the program
 /// may be used by multiple frontends, to ensure that proper fees are being
@@ -80,9 +83,9 @@ pub fn validate_swap_constraints(
     Ok(())
 }
 
-pub fn validate_mint_uncloseable(ctx: &Context<Initialize>) -> Result<()> {
+pub fn validate_mint_uncloseable(mint_account: &InterfaceAccount<Mint>) -> Result<()> {
     match anchor_spl::token_interface::get_mint_extension_data::<MintCloseAuthority>(
-        &ctx.accounts.pool_mint.to_account_info(),
+        &mint_account.to_account_info(),
     ) {
         Ok(MintCloseAuthority { close_authority })
             if Option::<Pubkey>::from(close_authority).is_some() =>

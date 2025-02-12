@@ -7,8 +7,6 @@ use super::Fees;
 pub trait SwapState {
     /// Is the swap initialized, with data written to it
     fn is_initialized(&self) -> bool;
-    /// Bump seed used to generate the program address / authority
-    fn bump_seed(&self) -> u8;
     /// Token program ID associated with the swap
     fn token_program_id(&self) -> &Pubkey;
     /// Address of token A liquidity account
@@ -52,7 +50,7 @@ pub struct SwapV1 {
     /// swap program id, and swap account pubkey.  This program address has
     /// authority over the swap's token A account, token B account, and pool
     /// token mint.
-    pub bump_seed: u8,
+    // pub bump_seed: u8,
 
     /// Program ID of the tokens being exchanged.
     pub token_program_id: Pubkey,
@@ -83,10 +81,6 @@ pub struct SwapV1 {
 impl SwapState for SwapV1 {
     fn is_initialized(&self) -> bool {
         self.is_initialized
-    }
-
-    fn bump_seed(&self) -> u8 {
-        self.bump_seed
     }
 
     fn token_program_id(&self) -> &Pubkey {

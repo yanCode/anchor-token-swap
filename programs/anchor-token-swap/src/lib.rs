@@ -30,26 +30,32 @@ pub mod anchor_token_swap {
             ctx.accounts.fee_account.owner,
             None
         )
-        validate_mint_uncloseable(&ctx)
+        validate_mint_uncloseable(&ctx.accounts.pool_mint)
     )]
     pub fn initialize(ctx: Context<Initialize>, curve_type: CurveType, fees: Fees) -> Result<()> {
         let swap_v1 = &mut ctx.accounts.swap_v1;
-        let swap_key = swap_v1.key();
-        let seeds = &[swap_key.as_ref()];
-        let (swap_authority, _) = Pubkey::find_program_address(seeds, ctx.program_id);
-        require_keys_eq!(
-            swap_authority,
-            ctx.accounts.authority.key(),
-            SwapError::InvalidProgramAddress
-        );
         let swap_curve = SwapCurve::new(curve_type);
-        let calculator = swap_curve.calculator;
+        let calculator = &swap_curve.calculator;
         fees.validate()?;
         calculator.validate()?;
         calculator.validate_supply(ctx.accounts.token_a.amount, ctx.accounts.token_b.amount)?;
+        let initial_amount = swap_curve.calculator.new_pool_supply();
+        
+        anchor_spl::token_interface::mint_to(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                anchor_spl::token_interface::MintTo {
+                    mint: ctx.accounts.pool_mint.to_account_info(),
+                    to: ctx.accounts.fee_account.to_account_info(),
+                    authority: ctx.accounts.authority.to_account_info(),
+                },
+                &[&[&swap_v1.key().to_bytes(), &[ctx.bumps.authority]]],
+            ),
+            initial_amount as u64,
+        )?;
+
         **swap_v1 = SwapV1 {
             is_initialized: true,
-            bump_seed: ctx.bumps.authority,
             token_program_id: TOKEN_2022_PROGRAM_ID,
             token_a: *ctx.accounts.token_a.to_account_info().key,
             token_b: *ctx.accounts.token_b.to_account_info().key,
@@ -141,9 +147,7 @@ pub struct Initialize<'info> {
     pub fee_account: InterfaceAccount<'info, TokenAccount>,
     #[account(mut)]
     pub payer: Signer<'info>,
-    #[account(
-        constraint = token_program.key() == TOKEN_2022_PROGRAM_ID @ SwapError::IncorrectTokenProgramId
-    )]
+    #[account()]
     pub token_program: Program<'info, Token2022>,
     pub system_program: Program<'info, System>,
 }
@@ -194,9 +198,7 @@ pub struct TokenSwap<'info> {
     pub pool_fee_account: InterfaceAccount<'info, TokenAccount>,
     pub source_token_mint: InterfaceAccount<'info, Mint>,
     pub destination_token_mint: InterfaceAccount<'info, Mint>,
-    #[account(
-        constraint =  token_program.key()!=TOKEN_2022_PROGRAM_ID @ SwapError::IncorrectTokenProgramId
-    )]
+    #[account()]
     pub token_program: Program<'info, Token2022>,
     pub system_program: Program<'info, System>,
 }
