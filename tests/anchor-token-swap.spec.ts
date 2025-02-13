@@ -41,104 +41,129 @@ class TokenSwapTest {
 
   }
   public static async init(connection: Connection, programId: PublicKey) {
-
     let test = new TokenSwapTest();
     test.owner = Keypair.generate();
     test.payer = Keypair.generate();
-    await airdrop_and_confirm(test.owner.publicKey, connection);
-    await airdrop_and_confirm(test.payer.publicKey, connection, 10 * LAMPORTS_PER_SOL);
+
+    // Airdrop transactions
+    await Promise.all([
+      airdrop_and_confirm(test.owner.publicKey, connection),
+      airdrop_and_confirm(test.payer.publicKey, connection, 10 * LAMPORTS_PER_SOL)
+    ]);
+
     test.tokenSwapAccount = Keypair.generate();
     [test.authority, test.authorityBumpSeed] = PublicKey.findProgramAddressSync(
       [test.tokenSwapAccount.publicKey.toBuffer()],
       programId
     );
-    test.tokenPool = await createMint(
-      connection,
-      test.payer,
-      test.authority,
-      null,
-      2,
-      Keypair.generate(),
-      undefined,
-      TOKEN_2022_PROGRAM_ID);
-    console.log('creating pool account');
-    test.tokenAccountPool = await createAccount(
-      connection,
-      test.payer,
-      test.tokenPool,
-      test.owner.publicKey,
-      Keypair.generate(),
-      undefined,
-      TOKEN_2022_PROGRAM_ID
-    );
-    test.feeAccount = await createAccount(
-      connection,
-      test.payer,
-      test.tokenPool,
-      test.owner.publicKey,
-      Keypair.generate(),
-      undefined,
-      TOKEN_2022_PROGRAM_ID);
-    test.mintA = await createMint(
-      connection,
-      test.payer,
-      test.owner.publicKey,
-      null,
-      2,
-      Keypair.generate(),
-      undefined,
-      TOKEN_2022_PROGRAM_ID
-    );
-    test.mintB = await createMint(
-      connection,
-      test.payer,
-      test.owner.publicKey,
-      null,
-      2,
-      Keypair.generate(),
-      undefined,
-      TOKEN_2022_PROGRAM_ID
-    );
-    test.tokenAccountA = await createAccount(
-      connection,
-      test.payer,
-      test.mintA,
-      test.owner.publicKey,
-      Keypair.generate(),
-      undefined,
-      TOKEN_2022_PROGRAM_ID
-    );
-    test.tokenAccountB = await createAccount(
-      connection,
-      test.payer,
-      test.mintB,
-      test.owner.publicKey,
-      Keypair.generate(),
-      undefined,
-      TOKEN_2022_PROGRAM_ID
-    );
-    await mintTo(
-      connection,
-      test.payer,
-      test.mintA,
-      test.tokenAccountA,
-      test.owner,
-      amountOfCurrentSwapTokenA,
-      [],
-      undefined,
-      TOKEN_2022_PROGRAM_ID
-    );
-    await mintTo(
-      connection,
-      test.payer,
-      test.mintB,
-      test.tokenAccountB,
-      test.owner,
-      amountOfCurrentSwapTokenB,
-      [],
-      undefined,
-      TOKEN_2022_PROGRAM_ID
-    );
+
+    // Batch 1: Create all mints
+    const [tokenPool, mintA, mintB] = await Promise.all([
+      createMint(
+        connection,
+        test.payer,
+        test.authority,
+        null,
+        2,
+        Keypair.generate(),
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      ),
+      createMint(
+        connection,
+        test.payer,
+        test.owner.publicKey,
+        null,
+        2,
+        Keypair.generate(),
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      ),
+      createMint(
+        connection,
+        test.payer,
+        test.owner.publicKey,
+        null,
+        2,
+        Keypair.generate(),
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      )
+    ]);
+    test.tokenPool = tokenPool;
+    test.mintA = mintA;
+    test.mintB = mintB;
+
+    // Batch 2: Create all accounts
+    const [tokenAccountPool, feeAccount, tokenAccountA, tokenAccountB] = await Promise.all([
+      createAccount(
+        connection,
+        test.payer,
+        test.tokenPool,
+        test.owner.publicKey,
+        Keypair.generate(),
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      ),
+      createAccount(
+        connection,
+        test.payer,
+        test.tokenPool,
+        test.owner.publicKey,
+        Keypair.generate(),
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      ),
+      createAccount(
+        connection,
+        test.payer,
+        test.mintA,
+        test.owner.publicKey,
+        Keypair.generate(),
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      ),
+      createAccount(
+        connection,
+        test.payer,
+        test.mintB,
+        test.owner.publicKey,
+        Keypair.generate(),
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      )
+    ]);
+    test.tokenAccountPool = tokenAccountPool;
+    test.feeAccount = feeAccount;
+    test.tokenAccountA = tokenAccountA;
+    test.tokenAccountB = tokenAccountB;
+
+    // Batch 3: Mint tokens
+    await Promise.all([
+      mintTo(
+        connection,
+        test.payer,
+        test.mintA,
+        test.tokenAccountA,
+        test.owner,
+        amountOfCurrentSwapTokenA,
+        [],
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      ),
+      mintTo(
+        connection,
+        test.payer,
+        test.mintB,
+        test.tokenAccountB,
+        test.owner,
+        amountOfCurrentSwapTokenB,
+        [],
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      )
+    ]);
+
     return test;
   }
 }
