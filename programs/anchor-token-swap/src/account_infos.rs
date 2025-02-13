@@ -71,3 +71,60 @@ pub struct TokenSwap<'info> {
     pub token_program: Program<'info, Token2022>,
     pub system_program: Program<'info, System>,
 }
+
+#[derive(Accounts)]
+pub struct Initialize<'info> {
+    #[account(
+        init,
+        payer = payer,
+        space = SwapV1::INIT_SPACE + 8
+    )]
+    pub swap_v1: Account<'info, SwapV1>,
+    #[account(
+        seeds = [swap_v1.key().as_ref()],
+        bump,
+    )]
+    pub authority: AccountInfo<'info>,
+    #[account(
+        token::token_program = token_program.key(),
+        // token::delegate = None todo validate the delegate & close_authority
+        constraint = token_a.delegate.is_none() @ SwapError::InvalidDelegate,
+        constraint = token_a.mint != token_b.mint @ SwapError::RepeatedMint,
+        constraint = token_a.owner != authority.key() @ SwapError::InvalidOwner,
+    )]
+    pub token_a: InterfaceAccount<'info, TokenAccount>,
+    #[account(
+        token::token_program = token_program.key(),
+        constraint = token_b.owner != authority.key() @ SwapError::InvalidOwner,
+        constraint = token_b.delegate.is_none() @ SwapError::InvalidDelegate,
+
+    )]
+    pub token_b: InterfaceAccount<'info, TokenAccount>,
+
+    #[account(
+        mut,
+        mint::authority = authority.key(),
+        mint::token_program = token_program.key(),
+        constraint = pool_mint.supply == 0 @ SwapError::InvalidSupply,
+    )]
+    pub pool_mint: InterfaceAccount<'info, Mint>,
+    #[account(
+        mut,
+        token::mint = pool_mint.key(),
+        token::token_program = token_program.key(),
+        constraint = destination.owner != authority.key() @ SwapError::InvalidOwner
+    )]
+    pub destination: InterfaceAccount<'info, TokenAccount>,
+    #[account(
+        mut,
+        token::mint = pool_mint.key(),
+        token::token_program = token_program.key(),
+        constraint = fee_account.owner != authority.key() @ SwapError::InvalidOwner
+    )]
+    pub fee_account: InterfaceAccount<'info, TokenAccount>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    #[account()]
+    pub token_program: Program<'info, Token2022>,
+    pub system_program: Program<'info, System>,
+}
