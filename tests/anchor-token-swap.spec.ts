@@ -1,7 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
 import { BN, Program } from "@coral-xyz/anchor";
 import { AnchorTokenSwap } from "../target/types/anchor_token_swap";
-import { PublicKey, SystemProgram, LAMPORTS_PER_SOL, Keypair, Connection } from "@solana/web3.js";
+import { PublicKey, SystemProgram, LAMPORTS_PER_SOL, Keypair, Connection, Transaction } from "@solana/web3.js";
 import { assert } from "chai";
 import { airdrop_and_confirm } from "./token";
 import { createAccount, createMint, mintTo, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
@@ -40,7 +40,7 @@ class TokenSwapTest {
   constructor() {
 
   }
-  public static async initialize(connection: Connection, programId: PublicKey) {
+  public static async init(connection: Connection, programId: PublicKey) {
 
     let test = new TokenSwapTest();
     test.owner = Keypair.generate();
@@ -156,47 +156,39 @@ describe("anchor-token-swap", () => {
   const program = anchor.workspace.AnchorTokenSwap as Program<AnchorTokenSwap>;
 
   beforeEach(async () => {
-    tokenSwapTest = await TokenSwapTest.initialize(connection, program.programId);
+    tokenSwapTest = await TokenSwapTest.init(connection, program.programId);
   });
 
 
 
 
   it("Is initialized!", async () => {
-    // const tx = program.methods.initialize({
-    //   constantProduct: {}
-    // },
-    //   {
-    //     tradeFeeNumerator: TRADING_FEE_NUMERATOR,
-    //     tradeFeeDenominator: TRADING_FEE_DENOMINATOR,
-    //     ownerTradeFeeNumerator: OWNER_TRADING_FEE_NUMERATOR,
-    //     ownerTradeFeeDenominator: OWNER_TRADING_FEE_DENOMINATOR,
-    //     ownerWithdrawFeeNumerator: OWNER_WITHDRAW_FEE_NUMERATOR,
-    //     ownerWithdrawFeeDenominator: OWNER_WITHDRAW_FEE_DENOMINATOR,
-    //     hostFeeNumerator: HOST_FEE_NUMERATOR,
-    //     hostFeeDenominator: HOST_FEE_DENOMINATOR
-    //   })
-    //   .accounts({
-    //     swapV1: tokenSwapTest.tokenSwapAccount.publicKey,
-    //     tokenA: tokenSwapTest.mintA,
-    //     tokenB: tokenSwapTest.mintB,
-    //     poolMint: tokenSwapTest.tokenPool,
-    //     destination: tokenSwapTest.tokenAccountPool,
-    //     feeAccount: tokenSwapTest.feeAccount,
-    //   })
-    //   .signers([tokenSwapTest.tokenSwapAccount])
-    //   .rpc();
-    // console.log('tx', tx);
-    // const tx = await program.methods.initialize({
-    //   curveType: CurveType.ConstantProduct,
-    //   fees: {
-    //     tokenBPrice: 1000000000000000000n,
-    //   }
-    // }).accountsPartial({
-    //   tokenSwapAccount: tokenSwapTest.tokenSwapAccount.publicKey,
-    //   tokenPool: tokenSwapTest.tokenPool,
-    //   tokenAccountPool: tokenSwapTest.tokenAccountPool,
-    //   feeAccount: tokenSwapTest.feeAccount,
-    // }).rpc();
+
+    const tx = await program.methods.initialize({
+      constantProduct: {}
+    },
+      {
+        tradeFeeNumerator: TRADING_FEE_NUMERATOR,
+        tradeFeeDenominator: TRADING_FEE_DENOMINATOR,
+        ownerTradeFeeNumerator: OWNER_TRADING_FEE_NUMERATOR,
+        ownerTradeFeeDenominator: OWNER_TRADING_FEE_DENOMINATOR,
+        ownerWithdrawFeeNumerator: OWNER_WITHDRAW_FEE_NUMERATOR,
+        ownerWithdrawFeeDenominator: OWNER_WITHDRAW_FEE_DENOMINATOR,
+        hostFeeNumerator: HOST_FEE_NUMERATOR,
+        hostFeeDenominator: HOST_FEE_DENOMINATOR
+      })
+      .accounts({
+        swapV1: tokenSwapTest.tokenSwapAccount.publicKey,
+        tokenA: tokenSwapTest.tokenAccountA,
+        tokenB: tokenSwapTest.tokenAccountB,
+        poolMint: tokenSwapTest.tokenPool,
+        destination: tokenSwapTest.tokenAccountPool,
+        feeAccount: tokenSwapTest.feeAccount,
+      })
+      .signers([tokenSwapTest.tokenSwapAccount])
+      .rpc({ commitment: "confirmed" });
+
   });
 });
+
+
