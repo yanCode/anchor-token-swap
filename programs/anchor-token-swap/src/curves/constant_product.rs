@@ -1,11 +1,11 @@
-use anchor_lang::prelude::*;
-use spl_math::{checked_ceil_div::CheckedCeilDiv, precise_number::PreciseNumber};
-
-use crate::SwapError;
-
-use super::{
-    map_zero_to_none, CurveCalculator, RoundDirection, SwapWithoutFeesResult, TradeDirection,
-    TradingTokenResult, INITIAL_SWAP_POOL_AMOUNT,
+use {
+    super::{
+        map_zero_to_none, CurveCalculator, RoundDirection, SwapWithoutFeesResult, TradeDirection,
+        TradingTokenResult, INITIAL_SWAP_POOL_AMOUNT,
+    },
+    crate::SwapError,
+    anchor_lang::prelude::*,
+    spl_math::{checked_ceil_div::CheckedCeilDiv, precise_number::PreciseNumber},
 };
 #[derive(Debug)]
 pub struct ConstantProductCurve;

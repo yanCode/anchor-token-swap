@@ -5,22 +5,14 @@ pub mod instructions;
 
 mod state;
 mod swap_constraints;
-use anchor_lang::prelude::*;
-
-use crate::curves::CurveType;
-pub use account_infos::*;
-pub use errors::*;
-pub use instructions::*;
-pub use state::*;
-pub use swap_constraints::*;
+use {crate::curves::CurveType, anchor_lang::prelude::*};
+pub use {account_infos::*, errors::*, instructions::*, state::*, swap_constraints::*};
 declare_id!("Bspu3p7dUX27mCSG5jaQkqoVwA6V2fMB9zZNpfu2dY9J");
 
 #[program]
 pub mod anchor_token_swap {
 
-    use crate::curves::CurveType;
-
-    use super::*;
+    use {super::*, crate::curves::CurveType};
 
     #[access_control(
         validate_swap_constraints(

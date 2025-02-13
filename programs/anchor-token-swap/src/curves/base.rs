@@ -1,10 +1,10 @@
-use anchor_lang::prelude::*;
-
-use crate::Fees;
-
-use super::{
-    ConstantPriceCurve, ConstantProductCurve, CurveCalculator, OffsetCurve, SwapWithoutFeesResult,
-    TradeDirection,
+use {
+    super::{
+        ConstantPriceCurve, ConstantProductCurve, CurveCalculator, OffsetCurve,
+        SwapWithoutFeesResult, TradeDirection,
+    },
+    crate::Fees,
+    anchor_lang::prelude::*,
 };
 
 /// Initial amount of pool tokens for swap contract, hard-coded to something

@@ -1,7 +1,11 @@
-use anchor_lang::prelude::*;
-use anchor_spl::{token_2022::{Token2022, ID as TOKEN_2022_PROGRAM_ID}, token_interface::{Mint, TokenAccount}};
-
-use crate::{SwapError, SwapV1};
+use {
+    crate::{SwapError, SwapV1},
+    anchor_lang::prelude::*,
+    anchor_spl::{
+        token_2022::{Token2022, ID as TOKEN_2022_PROGRAM_ID},
+        token_interface::{Mint, TokenAccount},
+    },
+};
 
 #[derive(Accounts)]
 pub struct TokenSwap<'info> {
@@ -19,8 +23,7 @@ pub struct TokenSwap<'info> {
     pub source: InterfaceAccount<'info, TokenAccount>,
     #[account(
         token::token_program = token_swap.token_program_id,
-        constraint = (swap_source.key() != token_swap.token_a.key()) 
-        && (swap_source.key() != token_swap.token_b.key())
+        constraint = (swap_source.key() != token_swap.token_a.key()) && (swap_source.key() != token_swap.token_b.key())
         @ SwapError::IncorrectSwapAccount,
 
         constraint = swap_source.key() != source.key() @ SwapError::InvalidInput,
@@ -30,8 +33,7 @@ pub struct TokenSwap<'info> {
     pub destination: InterfaceAccount<'info, TokenAccount>,
     #[account(
         token::token_program = token_swap.token_program_id,
-        constraint = (swap_destination.key() != token_swap.token_a.key()) 
-        && (swap_destination.key() != token_swap.token_b.key())
+        constraint = (swap_destination.key() != token_swap.token_a.key()) && (swap_destination.key() != token_swap.token_b.key())
         @ SwapError::IncorrectSwapAccount,
 
         constraint = swap_destination.key() != destination.key() @ SwapError::InvalidOutput

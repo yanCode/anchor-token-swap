@@ -1,6 +1,4 @@
-use anchor_lang::prelude::*;
-
-use crate::SwapError;
+use {crate::SwapError, anchor_lang::prelude::*};
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
 pub struct Fees {

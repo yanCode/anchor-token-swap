@@ -1,11 +1,11 @@
-use anchor_lang::prelude::*;
-use spl_math::{checked_ceil_div::CheckedCeilDiv, precise_number::PreciseNumber, uint::U256};
-
-use crate::SwapError;
-
-use super::{
-    map_zero_to_none, CurveCalculator, RoundDirection, SwapWithoutFeesResult, TradeDirection,
-    TradingTokenResult,
+use {
+    super::{
+        map_zero_to_none, CurveCalculator, RoundDirection, SwapWithoutFeesResult, TradeDirection,
+        TradingTokenResult,
+    },
+    crate::SwapError,
+    anchor_lang::prelude::*,
+    spl_math::{checked_ceil_div::CheckedCeilDiv, precise_number::PreciseNumber, uint::U256},
 };
 
 /// ConstantPriceCurve struct implementing CurveCalculator

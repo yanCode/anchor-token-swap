@@ -1,10 +1,7 @@
-use anchor_lang::prelude::*;
-use spl_math::precise_number::PreciseNumber;
-use std::fmt::Debug;
-
-use crate::SwapError;
-
-use super::INITIAL_SWAP_POOL_AMOUNT;
+use {
+    super::INITIAL_SWAP_POOL_AMOUNT, crate::SwapError, anchor_lang::prelude::*,
+    spl_math::precise_number::PreciseNumber, std::fmt::Debug,
+};
 
 pub trait CurveCalculator: Debug {
     /// Calculate how much destination token will be provided given an amount

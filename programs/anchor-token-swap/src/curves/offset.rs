@@ -1,12 +1,12 @@
-use anchor_lang::prelude::*;
-use spl_math::precise_number::PreciseNumber;
-
-use crate::SwapError;
-
-use super::{
-    deposit_single_token_type, normalized_value, pool_tokens_to_trading_tokens, swap,
-    withdraw_single_token_type_exact_out, CurveCalculator, RoundDirection, SwapWithoutFeesResult,
-    TradeDirection, TradingTokenResult,
+use {
+    super::{
+        deposit_single_token_type, normalized_value, pool_tokens_to_trading_tokens, swap,
+        withdraw_single_token_type_exact_out, CurveCalculator, RoundDirection,
+        SwapWithoutFeesResult, TradeDirection, TradingTokenResult,
+    },
+    crate::SwapError,
+    anchor_lang::prelude::*,
+    spl_math::precise_number::PreciseNumber,
 };
 
 /// Offset curve, uses ConstantProduct under the hood, but adds an offset to

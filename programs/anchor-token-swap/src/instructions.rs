@@ -1,16 +1,17 @@
-use anchor_lang::prelude::*;
-use anchor_spl::{
-    token_2022::{
-        spl_token_2022::extension::transfer_fee::TransferFeeConfig, Token2022,
-        ID as TOKEN_2022_PROGRAM_ID,
+use {
+    crate::{
+        account_infos::TokenSwap,
+        curves::{CurveType, RoundDirection, SwapCurve, TradeDirection},
+        Fees, SwapError, SwapState, SwapV1,
     },
-    token_interface::{get_mint_extension_data, Mint, TokenAccount},
-};
-
-use crate::{
-    account_infos::TokenSwap,
-    curves::{CurveType, RoundDirection, SwapCurve, TradeDirection},
-    Fees, SwapError, SwapState, SwapV1,
+    anchor_lang::prelude::*,
+    anchor_spl::{
+        token_2022::{
+            spl_token_2022::extension::transfer_fee::TransferFeeConfig, Token2022,
+            ID as TOKEN_2022_PROGRAM_ID,
+        },
+        token_interface::{get_mint_extension_data, Mint, TokenAccount},
+    },
 };
 
 pub fn swap_handler(
@@ -168,7 +169,8 @@ pub fn swap_handler(
                 pool_token_amount as u64,
             )?;
         }
-        // let host_fee = ctx.accounts.token_swap.fees().host_fee(pool_token_amount);
+        // let host_fee =
+        // ctx.accounts.token_swap.fees().host_fee(pool_token_amount);
     }
 
     anchor_spl::token_interface::transfer_checked(

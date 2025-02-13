@@ -1,8 +1,8 @@
-use anchor_lang::prelude::*;
-
-use crate::curves::{CurveType, SwapCurve};
-
-use super::Fees;
+use {
+    super::Fees,
+    crate::curves::{CurveType, SwapCurve},
+    anchor_lang::prelude::*,
+};
 
 pub trait SwapState {
     /// Is the swap initialized, with data written to it
@@ -114,8 +114,8 @@ impl SwapState for SwapV1 {
         // let data = &pool_fee_info.data.borrow();
         // let token_account =
         //     StateWithExtensions::<Account>::unpack(data).map_err(|err| match err {
-        //         ProgramError::InvalidAccountData | ProgramError::UninitializedAccount => {
-        //             SwapError::InvalidFeeAccount.into()
+        //         ProgramError::InvalidAccountData | ProgramError::UninitializedAccount
+        // => {             SwapError::InvalidFeeAccount.into()
         //         }
         //         _ => err,
         //     })?;
@@ -123,9 +123,9 @@ impl SwapState for SwapV1 {
         //     || token_account.base.state != AccountState::Initialized
         //     || token_account.base.mint != self.pool_mint
         // {
-        //     msg!("Pool fee account is not owned by token program, is not initialized, or does not match stake pool's mint");
-        //     return Err(SwapError::InvalidFeeAccount.into());
-        // }
+        //     msg!("Pool fee account is not owned by token program, is not initialized,
+        // or does not match stake pool's mint");     return
+        // Err(SwapError::InvalidFeeAccount.into()); }
         Ok(())
     }
     fn fees(&self) -> &Fees {
