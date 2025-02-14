@@ -115,7 +115,7 @@ pub struct DepositAllTokenTypes<'info> {
   )]
     pub authority: AccountInfo<'info>,
 
-    pub user_transfer_authority: SystemAccount<'info>,
+    pub user_transfer_authority: Signer<'info>,
     #[account(
       token::mint = token_a.mint,
       constraint = source_a.key() != token_a.key() @ SwapError::InvalidInput
@@ -154,15 +154,12 @@ pub struct DepositAllTokenTypes<'info> {
     pub destination: InterfaceAccount<'info, TokenAccount>,
     #[account(
      token::mint = pool_mint.key(),
-     constraint = pool_fee_account.key() != swap_v1.pool_fee_account @ SwapError::InvalidInput,
+     constraint = pool_fee_account.key() == swap_v1.pool_fee_account @ SwapError::InvalidInput,
     )]
     pub pool_fee_account: Option<InterfaceAccount<'info, TokenAccount>>,
     #[account(
-      token::token_program = swap_v1.token_program_id
+      constraint = token_program.key() == swap_v1.token_program_id @ SwapError::InvalidInput,
     )]
     pub token_program: Program<'info, Token2022>,
-    #[account(
-      token::token_program = swap_v1.token_program_id
-    )]
     pub system_program: Program<'info, System>,
 }

@@ -1,23 +1,17 @@
 import * as anchor from "@coral-xyz/anchor";
 import { BN, Program } from "@coral-xyz/anchor";
 import { AnchorTokenSwap } from "../target/types/anchor_token_swap";
+import { TokenSwapTest } from "./token";
 import {
-  PublicKey,
-  LAMPORTS_PER_SOL,
-  Keypair,
-  Connection,
-} from "@solana/web3.js";
-import { airdrop_and_confirm } from "./token";
-import {
+  approve,
   createAccount,
-  createMint,
+  getAccount,
+  getMint,
   mintTo,
   TOKEN_2022_PROGRAM_ID,
 } from "@solana/spl-token";
+import { Keypair } from "@solana/web3.js";
 
-// Initial amount in each swap token
-let amountOfCurrentSwapTokenA = 1000000n;
-let amountOfCurrentSwapTokenB = 1000000n;
 let currentFeeAmount = 0n;
 
 // Pool fees
@@ -30,155 +24,10 @@ const OWNER_WITHDRAW_FEE_DENOMINATOR = new BN(6);
 const HOST_FEE_NUMERATOR = new BN(20);
 const HOST_FEE_DENOMINATOR = new BN(100);
 
-class TokenSwapTest {
-  tokenSwapAccount: Keypair;
-  authority: PublicKey;
-  authorityBumpSeed: number;
-  provider: anchor.AnchorProvider;
-  // owner of the user accounts
-  owner: Keypair;
-  tokenAccountA: PublicKey;
-  tokenAccountB: PublicKey;
-  mintA: PublicKey;
-  mintB: PublicKey;
-  // payer for transactions
-  payer: Keypair;
-  tokenPool: PublicKey;
-  tokenAccountPool: PublicKey;
-  feeAccount: PublicKey;
-  constructor() {}
-  public static async init(connection: Connection, programId: PublicKey) {
-    let test = new TokenSwapTest();
-    test.owner = Keypair.generate();
-    test.payer = Keypair.generate();
-
-    // Airdrop transactions
-    await Promise.all([
-      airdrop_and_confirm(test.owner.publicKey, connection),
-      airdrop_and_confirm(
-        test.payer.publicKey,
-        connection,
-        10 * LAMPORTS_PER_SOL
-      ),
-    ]);
-
-    test.tokenSwapAccount = Keypair.generate();
-    [test.authority, test.authorityBumpSeed] = PublicKey.findProgramAddressSync(
-      [test.tokenSwapAccount.publicKey.toBuffer()],
-      programId
-    );
-
-    // Batch 1: Create all mints
-    const [tokenPool, mintA, mintB] = await Promise.all([
-      createMint(
-        connection,
-        test.payer,
-        test.authority,
-        null,
-        2,
-        Keypair.generate(),
-        undefined,
-        TOKEN_2022_PROGRAM_ID
-      ),
-      createMint(
-        connection,
-        test.payer,
-        test.owner.publicKey,
-        null,
-        2,
-        Keypair.generate(),
-        undefined,
-        TOKEN_2022_PROGRAM_ID
-      ),
-      createMint(
-        connection,
-        test.payer,
-        test.owner.publicKey,
-        null,
-        2,
-        Keypair.generate(),
-        undefined,
-        TOKEN_2022_PROGRAM_ID
-      ),
-    ]);
-    test.tokenPool = tokenPool;
-    test.mintA = mintA;
-    test.mintB = mintB;
-
-    // Batch 2: Create all accounts
-    const [tokenAccountPool, feeAccount, tokenAccountA, tokenAccountB] =
-      await Promise.all([
-        createAccount(
-          connection,
-          test.payer,
-          test.tokenPool,
-          test.owner.publicKey,
-          Keypair.generate(),
-          undefined,
-          TOKEN_2022_PROGRAM_ID
-        ),
-        createAccount(
-          connection,
-          test.payer,
-          test.tokenPool,
-          test.owner.publicKey,
-          Keypair.generate(),
-          undefined,
-          TOKEN_2022_PROGRAM_ID
-        ),
-        createAccount(
-          connection,
-          test.payer,
-          test.mintA,
-          test.owner.publicKey,
-          Keypair.generate(),
-          undefined,
-          TOKEN_2022_PROGRAM_ID
-        ),
-        createAccount(
-          connection,
-          test.payer,
-          test.mintB,
-          test.owner.publicKey,
-          Keypair.generate(),
-          undefined,
-          TOKEN_2022_PROGRAM_ID
-        ),
-      ]);
-    test.tokenAccountPool = tokenAccountPool;
-    test.feeAccount = feeAccount;
-    test.tokenAccountA = tokenAccountA;
-    test.tokenAccountB = tokenAccountB;
-
-    // Batch 3: Mint tokens
-    await Promise.all([
-      mintTo(
-        connection,
-        test.payer,
-        test.mintA,
-        test.tokenAccountA,
-        test.owner,
-        amountOfCurrentSwapTokenA,
-        [],
-        undefined,
-        TOKEN_2022_PROGRAM_ID
-      ),
-      mintTo(
-        connection,
-        test.payer,
-        test.mintB,
-        test.tokenAccountB,
-        test.owner,
-        amountOfCurrentSwapTokenB,
-        [],
-        undefined,
-        TOKEN_2022_PROGRAM_ID
-      ),
-    ]);
-
-    return test;
-  }
-}
+// Pool token amount minted on init
+// const DEFAULT_POOL_TOKEN_AMOUNT = 1000000000n;
+// Pool token amount to withdraw / deposit
+const POOL_TOKEN_AMOUNT = 10000000;
 
 describe("anchor-token-swap", () => {
   const provider = anchor.AnchorProvider.env();
@@ -193,12 +42,12 @@ describe("anchor-token-swap", () => {
   anchor.setProvider(provider);
   const program = anchor.workspace.AnchorTokenSwap as Program<AnchorTokenSwap>;
 
-  beforeEach(async () => {
+  before(async () => {
     tokenSwapTest = await TokenSwapTest.init(connection, program.programId);
   });
 
   it("Is initialized!", async () => {
-    const tx = await program.methods
+    let tx = await program.methods
       .initialize(
         {
           constantProduct: {},
@@ -223,6 +72,141 @@ describe("anchor-token-swap", () => {
         feeAccount: tokenSwapTest.feeAccount,
       })
       .signers([tokenSwapTest.tokenSwapAccount])
+      .rpc({ commitment: "confirmed" });
+  });
+
+  it("It should depoist all token types!", async () => {
+    const poolMint = await getMint(
+      connection,
+      tokenSwapTest.tokenPool,
+      undefined,
+      TOKEN_2022_PROGRAM_ID
+    );
+    const supply = poolMint.supply;
+    const swapTokenA = await getAccount(
+      connection,
+      tokenSwapTest.tokenAccountA,
+      undefined,
+      TOKEN_2022_PROGRAM_ID
+    );
+    const amountOftokenA =
+      (swapTokenA.amount * BigInt(POOL_TOKEN_AMOUNT)) / supply;
+    const swapTokenB = await getAccount(
+      connection,
+      tokenSwapTest.tokenAccountB,
+      undefined,
+      TOKEN_2022_PROGRAM_ID
+    );
+    const amountOftokenB =
+      (swapTokenB.amount * BigInt(POOL_TOKEN_AMOUNT)) / supply;
+    const userTransferAuthority = Keypair.generate();
+
+    const [userAccountA, userAccountB] = await Promise.all([
+      createAccount(
+        connection,
+        tokenSwapTest.payer,
+        tokenSwapTest.mintA,
+        tokenSwapTest.owner.publicKey,
+        Keypair.generate(),
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      ),
+      createAccount(
+        connection,
+        tokenSwapTest.payer,
+        tokenSwapTest.mintB,
+        tokenSwapTest.owner.publicKey,
+        Keypair.generate(),
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      ),
+    ]);
+
+    await Promise.all([
+      mintTo(
+        connection,
+        tokenSwapTest.payer,
+        tokenSwapTest.mintA,
+        userAccountA,
+        tokenSwapTest.owner,
+        amountOftokenA,
+        [],
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      ),
+      mintTo(
+        connection,
+        tokenSwapTest.payer,
+        tokenSwapTest.mintB,
+        userAccountB,
+        tokenSwapTest.owner,
+        amountOftokenB,
+        [],
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      ),
+    ]);
+
+    await Promise.all([
+      approve(
+        connection,
+        tokenSwapTest.payer,
+        userAccountA,
+        userTransferAuthority.publicKey,
+        tokenSwapTest.owner,
+        amountOftokenA,
+        [],
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      ),
+      approve(
+        connection,
+        tokenSwapTest.payer,
+        userAccountB,
+        userTransferAuthority.publicKey,
+        tokenSwapTest.owner,
+        amountOftokenB,
+        [],
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      ),
+    ]);
+
+    const newAccountPoolToken = await createAccount(
+      connection,
+      tokenSwapTest.payer,
+      tokenSwapTest.tokenPool,
+      tokenSwapTest.owner.publicKey,
+      Keypair.generate(),
+      undefined,
+      TOKEN_2022_PROGRAM_ID
+    );
+    console.log("sourceA", userAccountA.toBase58());
+    console.log("sourceB", userAccountB.toBase58());
+    console.log("destination", newAccountPoolToken.toBase58());
+    console.log("payer", tokenSwapTest.payer.publicKey.toBase58());
+
+    await program.methods
+      .depositAllTokenTypes(
+        new BN(POOL_TOKEN_AMOUNT.toString()),
+        new BN(amountOftokenA.toString()),
+        new BN(amountOftokenB.toString())
+      )
+      .accounts({
+        payer: tokenSwapTest.payer.publicKey,
+        swapV1: tokenSwapTest.tokenSwapAccount.publicKey,
+        userTransferAuthority: userTransferAuthority.publicKey,
+        sourceA: userAccountA,
+        sourceB: userAccountB,
+        tokenA: tokenSwapTest.tokenAccountA,
+        tokenB: tokenSwapTest.tokenAccountB,
+        tokenAMint: tokenSwapTest.mintA,
+        tokenBMint: tokenSwapTest.mintB,
+        poolMint: tokenSwapTest.tokenPool,
+        destination: newAccountPoolToken,
+        poolFeeAccount: tokenSwapTest.feeAccount,
+      })
+      .signers([tokenSwapTest.payer, userTransferAuthority])
       .rpc({ commitment: "confirmed" });
   });
 });
