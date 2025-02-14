@@ -1,10 +1,19 @@
 import * as anchor from "@coral-xyz/anchor";
 import { BN, Program } from "@coral-xyz/anchor";
 import { AnchorTokenSwap } from "../target/types/anchor_token_swap";
-import { PublicKey, SystemProgram, LAMPORTS_PER_SOL, Keypair, Connection, Transaction } from "@solana/web3.js";
-import { assert } from "chai";
+import {
+  PublicKey,
+  LAMPORTS_PER_SOL,
+  Keypair,
+  Connection,
+} from "@solana/web3.js";
 import { airdrop_and_confirm } from "./token";
-import { createAccount, createMint, mintTo, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
+import {
+  createAccount,
+  createMint,
+  mintTo,
+  TOKEN_2022_PROGRAM_ID,
+} from "@solana/spl-token";
 
 // Initial amount in each swap token
 let amountOfCurrentSwapTokenA = 1000000n;
@@ -22,7 +31,7 @@ const HOST_FEE_NUMERATOR = new BN(20);
 const HOST_FEE_DENOMINATOR = new BN(100);
 
 class TokenSwapTest {
-  tokenSwapAccount: Keypair
+  tokenSwapAccount: Keypair;
   authority: PublicKey;
   authorityBumpSeed: number;
   provider: anchor.AnchorProvider;
@@ -37,9 +46,7 @@ class TokenSwapTest {
   tokenPool: PublicKey;
   tokenAccountPool: PublicKey;
   feeAccount: PublicKey;
-  constructor() {
-
-  }
+  constructor() {}
   public static async init(connection: Connection, programId: PublicKey) {
     let test = new TokenSwapTest();
     test.owner = Keypair.generate();
@@ -48,7 +55,11 @@ class TokenSwapTest {
     // Airdrop transactions
     await Promise.all([
       airdrop_and_confirm(test.owner.publicKey, connection),
-      airdrop_and_confirm(test.payer.publicKey, connection, 10 * LAMPORTS_PER_SOL)
+      airdrop_and_confirm(
+        test.payer.publicKey,
+        connection,
+        10 * LAMPORTS_PER_SOL
+      ),
     ]);
 
     test.tokenSwapAccount = Keypair.generate();
@@ -88,51 +99,52 @@ class TokenSwapTest {
         Keypair.generate(),
         undefined,
         TOKEN_2022_PROGRAM_ID
-      )
+      ),
     ]);
     test.tokenPool = tokenPool;
     test.mintA = mintA;
     test.mintB = mintB;
 
     // Batch 2: Create all accounts
-    const [tokenAccountPool, feeAccount, tokenAccountA, tokenAccountB] = await Promise.all([
-      createAccount(
-        connection,
-        test.payer,
-        test.tokenPool,
-        test.owner.publicKey,
-        Keypair.generate(),
-        undefined,
-        TOKEN_2022_PROGRAM_ID
-      ),
-      createAccount(
-        connection,
-        test.payer,
-        test.tokenPool,
-        test.owner.publicKey,
-        Keypair.generate(),
-        undefined,
-        TOKEN_2022_PROGRAM_ID
-      ),
-      createAccount(
-        connection,
-        test.payer,
-        test.mintA,
-        test.owner.publicKey,
-        Keypair.generate(),
-        undefined,
-        TOKEN_2022_PROGRAM_ID
-      ),
-      createAccount(
-        connection,
-        test.payer,
-        test.mintB,
-        test.owner.publicKey,
-        Keypair.generate(),
-        undefined,
-        TOKEN_2022_PROGRAM_ID
-      )
-    ]);
+    const [tokenAccountPool, feeAccount, tokenAccountA, tokenAccountB] =
+      await Promise.all([
+        createAccount(
+          connection,
+          test.payer,
+          test.tokenPool,
+          test.owner.publicKey,
+          Keypair.generate(),
+          undefined,
+          TOKEN_2022_PROGRAM_ID
+        ),
+        createAccount(
+          connection,
+          test.payer,
+          test.tokenPool,
+          test.owner.publicKey,
+          Keypair.generate(),
+          undefined,
+          TOKEN_2022_PROGRAM_ID
+        ),
+        createAccount(
+          connection,
+          test.payer,
+          test.mintA,
+          test.owner.publicKey,
+          Keypair.generate(),
+          undefined,
+          TOKEN_2022_PROGRAM_ID
+        ),
+        createAccount(
+          connection,
+          test.payer,
+          test.mintB,
+          test.owner.publicKey,
+          Keypair.generate(),
+          undefined,
+          TOKEN_2022_PROGRAM_ID
+        ),
+      ]);
     test.tokenAccountPool = tokenAccountPool;
     test.feeAccount = feeAccount;
     test.tokenAccountA = tokenAccountA;
@@ -161,20 +173,21 @@ class TokenSwapTest {
         [],
         undefined,
         TOKEN_2022_PROGRAM_ID
-      )
+      ),
     ]);
 
     return test;
   }
 }
 
-
 describe("anchor-token-swap", () => {
   const provider = anchor.AnchorProvider.env();
   const connection = provider.connection;
-  anchor.setProvider(new anchor.AnchorProvider(connection, anchor.AnchorProvider.env().wallet, {
-    commitment: "confirmed",
-  }));
+  anchor.setProvider(
+    new anchor.AnchorProvider(connection, anchor.AnchorProvider.env().wallet, {
+      commitment: "confirmed",
+    })
+  );
   let tokenSwapTest: TokenSwapTest;
   // Configure the client to use the local cluster.
   anchor.setProvider(provider);
@@ -184,24 +197,23 @@ describe("anchor-token-swap", () => {
     tokenSwapTest = await TokenSwapTest.init(connection, program.programId);
   });
 
-
-
-
   it("Is initialized!", async () => {
-
-    const tx = await program.methods.initialize({
-      constantProduct: {}
-    },
-      {
-        tradeFeeNumerator: TRADING_FEE_NUMERATOR,
-        tradeFeeDenominator: TRADING_FEE_DENOMINATOR,
-        ownerTradeFeeNumerator: OWNER_TRADING_FEE_NUMERATOR,
-        ownerTradeFeeDenominator: OWNER_TRADING_FEE_DENOMINATOR,
-        ownerWithdrawFeeNumerator: OWNER_WITHDRAW_FEE_NUMERATOR,
-        ownerWithdrawFeeDenominator: OWNER_WITHDRAW_FEE_DENOMINATOR,
-        hostFeeNumerator: HOST_FEE_NUMERATOR,
-        hostFeeDenominator: HOST_FEE_DENOMINATOR
-      })
+    const tx = await program.methods
+      .initialize(
+        {
+          constantProduct: {},
+        },
+        {
+          tradeFeeNumerator: TRADING_FEE_NUMERATOR,
+          tradeFeeDenominator: TRADING_FEE_DENOMINATOR,
+          ownerTradeFeeNumerator: OWNER_TRADING_FEE_NUMERATOR,
+          ownerTradeFeeDenominator: OWNER_TRADING_FEE_DENOMINATOR,
+          ownerWithdrawFeeNumerator: OWNER_WITHDRAW_FEE_NUMERATOR,
+          ownerWithdrawFeeDenominator: OWNER_WITHDRAW_FEE_DENOMINATOR,
+          hostFeeNumerator: HOST_FEE_NUMERATOR,
+          hostFeeDenominator: HOST_FEE_DENOMINATOR,
+        }
+      )
       .accounts({
         swapV1: tokenSwapTest.tokenSwapAccount.publicKey,
         tokenA: tokenSwapTest.tokenAccountA,
@@ -212,8 +224,5 @@ describe("anchor-token-swap", () => {
       })
       .signers([tokenSwapTest.tokenSwapAccount])
       .rpc({ commitment: "confirmed" });
-
   });
 });
-
-

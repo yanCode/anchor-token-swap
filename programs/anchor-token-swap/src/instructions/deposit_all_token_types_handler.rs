@@ -1,9 +1,13 @@
 use {
     crate::{
         curves::{RoundDirection, SwapCurve},
-        DepositAllTokenTypes, SwapError,
+        SwapError, SwapV1,
     },
     anchor_lang::prelude::*,
+    anchor_spl::{
+        token_2022::Token2022,
+        token_interface::{Mint, TokenAccount},
+    },
 };
 
 pub fn deposit_all_token_types_handler(
@@ -94,4 +98,59 @@ pub fn deposit_all_token_types_handler(
         pool_token_amount as u64,
     )?;
     Ok(())
+}
+
+#[derive(Accounts)]
+pub struct DepositAllTokenTypes<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub swap_v1: Account<'info, SwapV1>,
+    #[account(
+      seeds = [swap_v1.key().as_ref()],
+      bump,
+  )]
+    pub authority: AccountInfo<'info>,
+
+    pub user_transfer_authority: SystemAccount<'info>,
+    #[account(
+      token::mint = token_a.mint,
+      constraint = source_a.key() != token_b.key() @ SwapError::InvalidInput
+    )]
+    pub source_a: InterfaceAccount<'info, TokenAccount>,
+    #[account(
+      token::mint = token_b.mint,
+      constraint = source_b.key() != token_a.key() @ SwapError::InvalidInput
+    )]
+    pub source_b: InterfaceAccount<'info, TokenAccount>,
+    #[account(
+      constraint = token_a.key() == swap_v1.token_a @ SwapError::InvalidInput,
+    )]
+    pub token_a: InterfaceAccount<'info, TokenAccount>,
+    #[account(
+      constraint = token_b.key() == swap_v1.token_b @ SwapError::InvalidInput,
+    )]
+    pub token_b: InterfaceAccount<'info, TokenAccount>,
+    #[account(
+      constraint = pool_mint.key() == swap_v1.pool_mint @ SwapError::IncorrectPoolMint,
+    )]
+    pub pool_mint: InterfaceAccount<'info, Mint>,
+    #[account(
+      constraint = token_a.key() == swap_v1.token_a @ SwapError::InvalidInput,
+    )]
+    pub token_a_mint: InterfaceAccount<'info, Mint>,
+    #[account(
+      constraint = token_b.key() == swap_v1.token_b @ SwapError::InvalidInput,
+    )]
+    pub token_b_mint: InterfaceAccount<'info, Mint>,
+    pub destination: InterfaceAccount<'info, TokenAccount>,
+    #[account(
+     token::mint = pool_mint.key(),
+     constraint = pool_fee_account.key() != swap_v1.pool_fee_account @ SwapError::InvalidInput,
+    )]
+    pub pool_fee_account: Option<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+      token::token_program = swap_v1.token_program_id
+    )]
+    pub token_program: Program<'info, Token2022>,
+    pub system_program: Program<'info, System>,
 }
