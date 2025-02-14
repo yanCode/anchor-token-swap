@@ -43,8 +43,18 @@ pub mod anchor_token_swap {
             token_b_slippage_limit,
         )
     }
-    pub fn withdraw_all_token_types(_ctx: Context<WithdrawAllTokenTypes>) -> Result<()> {
-        todo!()
+    pub fn withdraw_all_token_types(
+        ctx: Context<WithdrawAllTokenTypes>,
+        pool_token_amount: u64,
+        slippage_a_amount: u64,
+        slippage_b_amount: u64,
+    ) -> Result<()> {
+        instructions::withdraw_all_token_types_handler(
+            ctx,
+            pool_token_amount,
+            slippage_a_amount,
+            slippage_b_amount,
+        )
     }
     pub fn deposit_single_token_type_exact_amount_in(
         _ctx: Context<DepositSingleTokenTypeExactAmountIn>,
@@ -56,12 +66,6 @@ pub mod anchor_token_swap {
     ) -> Result<()> {
         todo!()
     }
-}
-
-#[derive(Accounts)]
-pub struct WithdrawAllTokenTypes<'info> {
-    #[account(mut)]
-    pub payer: Signer<'info>,
 }
 
 #[derive(Accounts)]
