@@ -28,7 +28,7 @@ impl SwapCurve {
             CurveType::Offset { token_b_offset } => Box::new(OffsetCurve { token_b_offset }),
         };
         SwapCurve {
-            curve_type: curve_type,
+            curve_type,
             calculator,
         }
     }
