@@ -43,11 +43,11 @@ pub fn deposit_all_token_types_handler(
     let token_b_amount = results.token_b_amount as u64;
 
     require!(
-        token_a_amount > token_a_slippage_limit,
+        token_a_amount >= token_a_slippage_limit,
         SwapError::ExceededSlippage
     );
     require!(
-        token_b_amount > token_b_slippage_limit,
+        token_b_amount >= token_b_slippage_limit,
         SwapError::ExceededSlippage
     );
 
@@ -117,24 +117,29 @@ pub struct DepositAllTokenTypes<'info> {
 
     pub user_transfer_authority: Signer<'info>,
     #[account(
+      mut,
       token::mint = token_a.mint,
       constraint = source_a.key() != token_a.key() @ SwapError::InvalidInput
     )]
     pub source_a: InterfaceAccount<'info, TokenAccount>,
     #[account(
+      mut,
       token::mint = token_b.mint,
       constraint = source_b.key() != token_b.key() @ SwapError::InvalidInput
     )]
     pub source_b: InterfaceAccount<'info, TokenAccount>,
     #[account(
+      mut,
       constraint = token_a.key() == swap_v1.token_a @ SwapError::InvalidInput,
     )]
     pub token_a: InterfaceAccount<'info, TokenAccount>,
     #[account(
+      mut,
       constraint = token_b.key() == swap_v1.token_b @ SwapError::InvalidInput,
     )]
     pub token_b: InterfaceAccount<'info, TokenAccount>,
     #[account(
+      mut,
       constraint = pool_mint.key() == swap_v1.pool_mint @ SwapError::IncorrectPoolMint,
     )]
     pub pool_mint: InterfaceAccount<'info, Mint>,
@@ -147,6 +152,7 @@ pub struct DepositAllTokenTypes<'info> {
     )]
     pub token_b_mint: InterfaceAccount<'info, Mint>,
     #[account(
+      mut,
       token::mint = pool_mint.key(),
       constraint = destination.key() != token_a.key() @ SwapError::InvalidInput,
       constraint = destination.key() != token_b.key() @ SwapError::InvalidInput,

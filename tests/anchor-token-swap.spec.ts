@@ -181,10 +181,6 @@ describe("anchor-token-swap", () => {
       undefined,
       TOKEN_2022_PROGRAM_ID
     );
-    console.log("sourceA", userAccountA.toBase58());
-    console.log("sourceB", userAccountB.toBase58());
-    console.log("destination", newAccountPoolToken.toBase58());
-    console.log("payer", tokenSwapTest.payer.publicKey.toBase58());
 
     await program.methods
       .depositAllTokenTypes(
