@@ -15,14 +15,14 @@ import { Keypair } from "@solana/web3.js";
 let currentFeeAmount = 0n;
 
 // Pool fees
-const TRADING_FEE_NUMERATOR = new BN(25);
-const TRADING_FEE_DENOMINATOR = new BN(10000);
-const OWNER_TRADING_FEE_NUMERATOR = new BN(5);
-const OWNER_TRADING_FEE_DENOMINATOR = new BN(10000);
-const OWNER_WITHDRAW_FEE_NUMERATOR = new BN(1);
-const OWNER_WITHDRAW_FEE_DENOMINATOR = new BN(6);
-const HOST_FEE_NUMERATOR = new BN(20);
-const HOST_FEE_DENOMINATOR = new BN(100);
+const TRADING_FEE_NUMERATOR = 25;
+const TRADING_FEE_DENOMINATOR = 10000;
+const OWNER_TRADING_FEE_NUMERATOR = 5;
+const OWNER_TRADING_FEE_DENOMINATOR = 10000;
+const OWNER_WITHDRAW_FEE_NUMERATOR = 1;
+const OWNER_WITHDRAW_FEE_DENOMINATOR = 6;
+const HOST_FEE_NUMERATOR = 20;
+const HOST_FEE_DENOMINATOR = 100;
 
 // Pool token amount minted on init
 // const DEFAULT_POOL_TOKEN_AMOUNT = 1000000000n;
@@ -53,14 +53,14 @@ describe("anchor-token-swap", () => {
           constantProduct: {},
         },
         {
-          tradeFeeNumerator: TRADING_FEE_NUMERATOR,
-          tradeFeeDenominator: TRADING_FEE_DENOMINATOR,
-          ownerTradeFeeNumerator: OWNER_TRADING_FEE_NUMERATOR,
-          ownerTradeFeeDenominator: OWNER_TRADING_FEE_DENOMINATOR,
-          ownerWithdrawFeeNumerator: OWNER_WITHDRAW_FEE_NUMERATOR,
-          ownerWithdrawFeeDenominator: OWNER_WITHDRAW_FEE_DENOMINATOR,
-          hostFeeNumerator: HOST_FEE_NUMERATOR,
-          hostFeeDenominator: HOST_FEE_DENOMINATOR,
+          tradeFeeNumerator: new BN(TRADING_FEE_NUMERATOR),
+          tradeFeeDenominator: new BN(TRADING_FEE_DENOMINATOR),
+          ownerTradeFeeNumerator: new BN(OWNER_TRADING_FEE_NUMERATOR),
+          ownerTradeFeeDenominator: new BN(OWNER_TRADING_FEE_DENOMINATOR),
+          ownerWithdrawFeeNumerator: new BN(OWNER_WITHDRAW_FEE_NUMERATOR),
+          ownerWithdrawFeeDenominator: new BN(OWNER_WITHDRAW_FEE_DENOMINATOR),
+          hostFeeNumerator: new BN(HOST_FEE_NUMERATOR),
+          hostFeeDenominator: new BN(HOST_FEE_DENOMINATOR),
         }
       )
       .accounts({
@@ -75,7 +75,7 @@ describe("anchor-token-swap", () => {
       .rpc({ commitment: "confirmed" });
   });
 
-  it("It should depoist all token types!", async () => {
+  it("test depositAllTokenTypes", async () => {
     const poolMint = await getMint(
       connection,
       tokenSwapTest.tokenPool,
@@ -83,20 +83,24 @@ describe("anchor-token-swap", () => {
       TOKEN_2022_PROGRAM_ID
     );
     const supply = poolMint.supply;
-    const swapTokenA = await getAccount(
-      connection,
-      tokenSwapTest.tokenAccountA,
-      undefined,
-      TOKEN_2022_PROGRAM_ID
-    );
+
+    const [swapTokenA, swapTokenB] = await Promise.all([
+      getAccount(
+        connection,
+        tokenSwapTest.tokenAccountA,
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      ),
+      getAccount(
+        connection,
+        tokenSwapTest.tokenAccountB,
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      ),
+    ]);
+
     const amountOftokenA =
       (swapTokenA.amount * BigInt(POOL_TOKEN_AMOUNT)) / supply;
-    const swapTokenB = await getAccount(
-      connection,
-      tokenSwapTest.tokenAccountB,
-      undefined,
-      TOKEN_2022_PROGRAM_ID
-    );
     const amountOftokenB =
       (swapTokenB.amount * BigInt(POOL_TOKEN_AMOUNT)) / supply;
     const userTransferAuthority = Keypair.generate();
@@ -200,6 +204,97 @@ describe("anchor-token-swap", () => {
         tokenBMint: tokenSwapTest.mintB,
         poolMint: tokenSwapTest.tokenPool,
         destination: newAccountPoolToken,
+        poolFeeAccount: tokenSwapTest.feeAccount,
+      })
+      .signers([tokenSwapTest.payer, userTransferAuthority])
+      .rpc({ commitment: "confirmed" });
+  });
+
+  it("test withdrawAllTokenTypes", async () => {
+    const poolMint = await getMint(
+      connection,
+      tokenSwapTest.tokenPool,
+      undefined,
+      TOKEN_2022_PROGRAM_ID
+    );
+    const supply = poolMint.supply;
+
+    const [swapTokenA, swapTokenB] = await Promise.all([
+      getAccount(
+        connection,
+        tokenSwapTest.tokenAccountA,
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      ),
+      getAccount(
+        connection,
+        tokenSwapTest.tokenAccountB,
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      ),
+    ]);
+    let feeAmount =
+      (BigInt(POOL_TOKEN_AMOUNT) * BigInt(OWNER_WITHDRAW_FEE_NUMERATOR)) /
+      BigInt(OWNER_WITHDRAW_FEE_DENOMINATOR);
+
+    const poolTokenAmount = BigInt(POOL_TOKEN_AMOUNT) - BigInt(feeAmount);
+    const amountOftokenA =
+      (swapTokenA.amount * BigInt(poolTokenAmount)) / supply;
+    const amountOftokenB =
+      (swapTokenB.amount * BigInt(poolTokenAmount)) / supply;
+
+    const [userAccountA, userAccountB] = await Promise.all([
+      createAccount(
+        connection,
+        tokenSwapTest.payer,
+        tokenSwapTest.mintA,
+        tokenSwapTest.owner.publicKey,
+        Keypair.generate(),
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      ),
+      createAccount(
+        connection,
+        tokenSwapTest.payer,
+        tokenSwapTest.mintB,
+        tokenSwapTest.owner.publicKey,
+        Keypair.generate(),
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      ),
+    ]);
+    const userTransferAuthority = Keypair.generate();
+
+    await approve(
+      connection,
+      tokenSwapTest.payer,
+      tokenSwapTest.tokenAccountPool,
+      userTransferAuthority.publicKey,
+      tokenSwapTest.owner,
+      POOL_TOKEN_AMOUNT,
+      [],
+      undefined,
+      TOKEN_2022_PROGRAM_ID
+    );
+
+    await program.methods
+      .withdrawAllTokenTypes(
+        new BN(poolTokenAmount.toString()),
+        new BN(amountOftokenA.toString()),
+        new BN(amountOftokenB.toString())
+      )
+      .accounts({
+        payer: tokenSwapTest.payer.publicKey,
+        swapV1: tokenSwapTest.tokenSwapAccount.publicKey,
+        userTransferAuthority: userTransferAuthority.publicKey,
+        destinationA: userAccountA,
+        destinationB: userAccountB,
+        source: tokenSwapTest.tokenAccountPool,
+        tokenA: tokenSwapTest.tokenAccountA,
+        tokenB: tokenSwapTest.tokenAccountB,
+        tokenAMint: tokenSwapTest.mintA,
+        tokenBMint: tokenSwapTest.mintB,
+        poolMint: tokenSwapTest.tokenPool,
         poolFeeAccount: tokenSwapTest.feeAccount,
       })
       .signers([tokenSwapTest.payer, userTransferAuthority])
