@@ -47,7 +47,7 @@ pub fn withdraw_all_token_types_handler(
         .ok_or(SwapError::ZeroTradingTokens)?;
     let mut token_a_amount = results.token_a_amount as u64;
     token_a_amount = min(token_a_amount, ctx.accounts.token_a.amount);
-    require_gt!(
+    require_gte!(
         token_a_amount,
         slippage_a_amount,
         SwapError::ExceededSlippage
@@ -58,7 +58,7 @@ pub fn withdraw_all_token_types_handler(
     );
     let mut token_b_amount = results.token_b_amount as u64;
     token_b_amount = min(token_b_amount, ctx.accounts.token_b.amount);
-    require_gt!(
+    require_gte!(
         token_b_amount,
         slippage_b_amount,
         SwapError::ExceededSlippage
@@ -149,25 +149,30 @@ pub struct WithdrawAllTokenTypes<'info> {
   )]
     pub authority: AccountInfo<'info>,
 
-    pub user_transfer_authority: SystemAccount<'info>,
+    pub user_transfer_authority: Signer<'info>,
     #[account(
+      mut,
       constraint = token_a.key() == swap_v1.token_a @ SwapError::InvalidInput,
     )]
     pub token_a: InterfaceAccount<'info, TokenAccount>,
     #[account(
+      mut,
       constraint = token_b.key() == swap_v1.token_b @ SwapError::InvalidInput,
     )]
     pub token_b: InterfaceAccount<'info, TokenAccount>,
     #[account(
+      mut,
       constraint = pool_mint.key() == swap_v1.pool_mint @ SwapError::IncorrectPoolMint,
     )]
     pub pool_mint: InterfaceAccount<'info, Mint>,
     #[account(
+      mut,
       token::mint = token_a.mint,
       constraint = destination_a.key() != token_a.key() @ SwapError::InvalidInput
     )]
     pub destination_a: InterfaceAccount<'info, TokenAccount>,
     #[account(
+      mut,
       token::mint = token_b.mint,
       constraint = destination_b.key() != token_a.key() @ SwapError::InvalidInput
     )]
@@ -185,10 +190,14 @@ pub struct WithdrawAllTokenTypes<'info> {
       constraint = pool_fee_account.key() == swap_v1.pool_fee_account @ SwapError::InvalidInput,
     )]
     pub pool_fee_account: Option<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+      mut,
+      token::mint = pool_mint.key()
+    )]
     pub source: InterfaceAccount<'info, TokenAccount>,
     pub system_program: Program<'info, System>,
     #[account(
-      token::token_program = swap_v1.token_program_id
+      constraint = token_program.key() == swap_v1.token_program_id
     )]
     pub token_program: Program<'info, Token2022>,
 }

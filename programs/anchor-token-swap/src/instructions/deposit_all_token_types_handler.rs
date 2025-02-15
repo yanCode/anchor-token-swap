@@ -42,12 +42,14 @@ pub fn deposit_all_token_types_handler(
     let token_a_amount = results.token_a_amount as u64;
     let token_b_amount = results.token_b_amount as u64;
 
-    require!(
-        token_a_amount >= token_a_slippage_limit,
+    require_gte!(
+        token_a_amount,
+        token_a_slippage_limit,
         SwapError::ExceededSlippage
     );
-    require!(
-        token_b_amount >= token_b_slippage_limit,
+    require_gte!(
+        token_b_amount,
+        token_b_slippage_limit,
         SwapError::ExceededSlippage
     );
 
