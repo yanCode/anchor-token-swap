@@ -21,7 +21,9 @@ pub fn withdraw_all_token_types_handler(
     let calculator = swap_curve.calculator;
     let withdraw_fee = match &ctx.accounts.pool_fee_account {
         Some(_) => {
-            if ctx.accounts.swap_v1.pool_fee_account.key() == ctx.accounts.source.key() {
+            if ctx.accounts.swap_v1.pool_fee_account.key()
+                == ctx.accounts.user_pool_token_source.key()
+            {
                 0
             } else {
                 ctx.accounts
@@ -40,31 +42,32 @@ pub fn withdraw_all_token_types_handler(
         .pool_tokens_to_trading_tokens(
             pool_token_amount,
             u128::from(ctx.accounts.pool_mint.supply),
-            u128::from(ctx.accounts.token_a.amount),
-            u128::from(ctx.accounts.token_b.amount),
+            u128::from(ctx.accounts.swap_token_a.amount),
+            u128::from(ctx.accounts.swap_token_b.amount),
             RoundDirection::Floor,
         )
         .ok_or(SwapError::ZeroTradingTokens)?;
+
     let mut token_a_amount = results.token_a_amount as u64;
-    token_a_amount = min(token_a_amount, ctx.accounts.token_a.amount);
+    token_a_amount = min(token_a_amount, ctx.accounts.swap_token_a.amount);
     require_gte!(
         token_a_amount,
         slippage_a_amount,
         SwapError::ExceededSlippage
     );
     require!(
-        token_a_amount != 0 || ctx.accounts.token_a.amount == 0,
+        token_a_amount != 0 || ctx.accounts.swap_token_a.amount == 0,
         SwapError::ZeroTradingTokens
     );
     let mut token_b_amount = results.token_b_amount as u64;
-    token_b_amount = min(token_b_amount, ctx.accounts.token_b.amount);
+    token_b_amount = min(token_b_amount, ctx.accounts.swap_token_b.amount);
     require_gte!(
         token_b_amount,
         slippage_b_amount,
         SwapError::ExceededSlippage
     );
     require!(
-        token_b_amount != 0 || ctx.accounts.token_b.amount == 0,
+        token_b_amount != 0 || ctx.accounts.swap_token_b.amount == 0,
         SwapError::ZeroTradingTokens
     );
     if withdraw_fee > 0 && ctx.accounts.pool_fee_account.is_some() {
@@ -72,7 +75,7 @@ pub fn withdraw_all_token_types_handler(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
                 anchor_spl::token_interface::TransferChecked {
-                    from: ctx.accounts.source.to_account_info(),
+                    from: ctx.accounts.user_pool_token_source.to_account_info(),
                     to: ctx
                         .accounts
                         .pool_fee_account
@@ -89,14 +92,13 @@ pub fn withdraw_all_token_types_handler(
         )?;
     }
     anchor_spl::token_interface::burn_checked(
-        CpiContext::new_with_signer(
+        CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
             anchor_spl::token_interface::BurnChecked {
-                from: ctx.accounts.source.to_account_info(),
-                authority: ctx.accounts.authority.to_account_info(),
+                from: ctx.accounts.user_pool_token_source.to_account_info(),
+                authority: ctx.accounts.user_transfer_authority.to_account_info(),
                 mint: ctx.accounts.pool_mint.to_account_info(),
             },
-            &[&[ctx.accounts.swap_v1.key().as_ref(), &[ctx.bumps.authority]]],
         ),
         token_a_amount,
         ctx.accounts.token_a_mint.decimals,
@@ -107,9 +109,9 @@ pub fn withdraw_all_token_types_handler(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
                 anchor_spl::token_interface::TransferChecked {
-                    from: ctx.accounts.token_a.to_account_info(),
+                    from: ctx.accounts.swap_token_a.to_account_info(),
                     to: ctx.accounts.destination_a.to_account_info(),
-                    authority: ctx.accounts.user_transfer_authority.to_account_info(),
+                    authority: ctx.accounts.authority.to_account_info(),
                     mint: ctx.accounts.token_a_mint.to_account_info(),
                 },
                 &[&[ctx.accounts.swap_v1.key().as_ref(), &[ctx.bumps.authority]]],
@@ -123,9 +125,9 @@ pub fn withdraw_all_token_types_handler(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
                 anchor_spl::token_interface::TransferChecked {
-                    from: ctx.accounts.token_b.to_account_info(),
+                    from: ctx.accounts.swap_token_b.to_account_info(),
                     to: ctx.accounts.destination_b.to_account_info(),
-                    authority: ctx.accounts.user_transfer_authority.to_account_info(),
+                    authority: ctx.accounts.authority.to_account_info(),
                     mint: ctx.accounts.token_b_mint.to_account_info(),
                 },
                 &[&[ctx.accounts.swap_v1.key().as_ref(), &[ctx.bumps.authority]]],
@@ -152,14 +154,16 @@ pub struct WithdrawAllTokenTypes<'info> {
     pub user_transfer_authority: Signer<'info>,
     #[account(
       mut,
-      constraint = token_a.key() == swap_v1.token_a @ SwapError::InvalidInput,
+      constraint = swap_token_a.owner == authority.key() @ SwapError::InvalidInput,
+      constraint = swap_token_a.key() == swap_v1.token_a @ SwapError::InvalidInput,
     )]
-    pub token_a: InterfaceAccount<'info, TokenAccount>,
+    pub swap_token_a: InterfaceAccount<'info, TokenAccount>,
     #[account(
       mut,
-      constraint = token_b.key() == swap_v1.token_b @ SwapError::InvalidInput,
+      constraint = swap_token_a.owner == authority.key() @ SwapError::InvalidInput,
+      constraint = swap_token_b.key() == swap_v1.token_b @ SwapError::InvalidInput,
     )]
-    pub token_b: InterfaceAccount<'info, TokenAccount>,
+    pub swap_token_b: InterfaceAccount<'info, TokenAccount>,
     #[account(
       mut,
       constraint = pool_mint.key() == swap_v1.pool_mint @ SwapError::IncorrectPoolMint,
@@ -167,14 +171,14 @@ pub struct WithdrawAllTokenTypes<'info> {
     pub pool_mint: InterfaceAccount<'info, Mint>,
     #[account(
       mut,
-      token::mint = token_a.mint,
-      constraint = destination_a.key() != token_a.key() @ SwapError::InvalidInput
+      token::mint = swap_token_a.mint,
+      constraint = destination_a.key() != swap_token_a.key() @ SwapError::InvalidInput
     )]
     pub destination_a: InterfaceAccount<'info, TokenAccount>,
     #[account(
       mut,
-      token::mint = token_b.mint,
-      constraint = destination_b.key() != token_a.key() @ SwapError::InvalidInput
+      token::mint = swap_token_b.mint,
+      constraint = destination_b.key() != swap_token_b.key() @ SwapError::InvalidInput
     )]
     pub destination_b: InterfaceAccount<'info, TokenAccount>,
     #[account(
@@ -186,6 +190,7 @@ pub struct WithdrawAllTokenTypes<'info> {
     )]
     pub token_b_mint: InterfaceAccount<'info, Mint>,
     #[account(
+      mut,
       token::mint = pool_mint.key(),
       constraint = pool_fee_account.key() == swap_v1.pool_fee_account @ SwapError::InvalidInput,
     )]
@@ -193,8 +198,9 @@ pub struct WithdrawAllTokenTypes<'info> {
     #[account(
       mut,
       token::mint = pool_mint.key()
+
     )]
-    pub source: InterfaceAccount<'info, TokenAccount>,
+    pub user_pool_token_source: InterfaceAccount<'info, TokenAccount>,
     pub system_program: Program<'info, System>,
     #[account(
       constraint = token_program.key() == swap_v1.token_program_id

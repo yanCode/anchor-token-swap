@@ -123,7 +123,7 @@ pub enum RoundDirection {
     /// Ceiling the value, ie. 1.9 => 2, 1.1 => 2, 1.5 => 2
     Ceiling,
 }
-
+#[derive(Debug)]
 pub struct TradingTokenResult {
     /// Amount of token A
     pub token_a_amount: u128,

@@ -1,5 +1,14 @@
 import * as anchor from "@coral-xyz/anchor";
-import { createAccount, createMint, mintTo } from "@solana/spl-token";
+import {
+  approve,
+  createAccount,
+  createMint,
+  getAccount,
+  getMint,
+  Mint,
+  mintTo,
+  Account as TokenAccount,
+} from "@solana/spl-token";
 import {
   PublicKey,
   LAMPORTS_PER_SOL,
@@ -37,15 +46,16 @@ export class TokenSwapTest {
   provider: anchor.AnchorProvider;
   // owner of the user accounts
   owner: Keypair;
-  tokenAccountA: PublicKey;
-  tokenAccountB: PublicKey;
+  swapTokenA: PublicKey;
+  swapTokenB: PublicKey;
   mintA: PublicKey;
   mintB: PublicKey;
   // payer for transactions
   payer: Keypair;
-  tokenPool: PublicKey;
-  tokenAccountPool: PublicKey;
-  feeAccount: PublicKey;
+  poolMint: PublicKey;
+  //only use for receiver of the pool token during init
+  userPoolTokenReciever: PublicKey;
+  poolFeeAccount: PublicKey;
   constructor() {}
   public static async init(connection: Connection, programId: PublicKey) {
     let test = new TokenSwapTest();
@@ -69,7 +79,7 @@ export class TokenSwapTest {
     );
 
     // Batch 1: Create all mints
-    const [tokenPool, mintA, mintB] = await Promise.all([
+    const [poolMint, mintA, mintB] = await Promise.all([
       createMint(
         connection,
         test.payer,
@@ -101,17 +111,17 @@ export class TokenSwapTest {
         TOKEN_2022_PROGRAM_ID
       ),
     ]);
-    test.tokenPool = tokenPool;
+    test.poolMint = poolMint;
     test.mintA = mintA;
     test.mintB = mintB;
 
     // Batch 2: Create all accounts
-    const [tokenAccountPool, feeAccount, tokenAccountA, tokenAccountB] =
+    const [userPoolTokenReciever, poolFeeAccount, swapTokenA, swapTokenB] =
       await Promise.all([
         createAccount(
           connection,
           test.payer,
-          test.tokenPool,
+          test.poolMint,
           test.owner.publicKey,
           Keypair.generate(),
           undefined,
@@ -120,7 +130,7 @@ export class TokenSwapTest {
         createAccount(
           connection,
           test.payer,
-          test.tokenPool,
+          test.poolMint,
           test.owner.publicKey,
           Keypair.generate(),
           undefined,
@@ -130,7 +140,7 @@ export class TokenSwapTest {
           connection,
           test.payer,
           test.mintA,
-          test.owner.publicKey,
+          test.authority,
           Keypair.generate(),
           undefined,
           TOKEN_2022_PROGRAM_ID
@@ -139,16 +149,16 @@ export class TokenSwapTest {
           connection,
           test.payer,
           test.mintB,
-          test.owner.publicKey,
+          test.authority,
           Keypair.generate(),
           undefined,
           TOKEN_2022_PROGRAM_ID
         ),
       ]);
-    test.tokenAccountPool = tokenAccountPool;
-    test.feeAccount = feeAccount;
-    test.tokenAccountA = tokenAccountA;
-    test.tokenAccountB = tokenAccountB;
+    test.userPoolTokenReciever = userPoolTokenReciever;
+    test.poolFeeAccount = poolFeeAccount;
+    test.swapTokenA = swapTokenA;
+    test.swapTokenB = swapTokenB;
 
     // Batch 3: Mint tokens
     await Promise.all([
@@ -156,7 +166,7 @@ export class TokenSwapTest {
         connection,
         test.payer,
         test.mintA,
-        test.tokenAccountA,
+        test.swapTokenA,
         test.owner,
         amountOfCurrentSwapTokenA,
         [],
@@ -167,7 +177,7 @@ export class TokenSwapTest {
         connection,
         test.payer,
         test.mintB,
-        test.tokenAccountB,
+        test.swapTokenB,
         test.owner,
         amountOfCurrentSwapTokenB,
         [],
@@ -177,5 +187,129 @@ export class TokenSwapTest {
     ]);
 
     return test;
+  }
+  private async getAccount(
+    connection: Connection,
+    key: PublicKey
+  ): Promise<TokenAccount> {
+    return getAccount(connection, key, undefined, TOKEN_2022_PROGRAM_ID);
+  }
+  private async createToken(
+    connection: Connection,
+    mint: PublicKey,
+    key: Keypair = Keypair.generate()
+  ): Promise<PublicKey> {
+    return createAccount(
+      connection,
+      this.payer,
+      mint,
+      this.owner.publicKey,
+      key,
+      undefined,
+      TOKEN_2022_PROGRAM_ID
+    );
+  }
+
+  /**
+   * Get the token accounts from the swap tokens
+   * @param connection
+   * @returns [tokenA, tokenB]
+   */
+  public async getSwapTokenAccounts(
+    connection: Connection
+  ): Promise<[TokenAccount, TokenAccount]> {
+    return Promise.all([
+      this.getAccount(connection, this.swapTokenA),
+      this.getAccount(connection, this.swapTokenB),
+    ]);
+  }
+  /**
+   * Create a pair of token accounts of mintA and mintB
+   * @param connection
+   * @returns [tokenA, tokenB]
+   */
+  public async createTokenPair(
+    connection: Connection
+  ): Promise<[PublicKey, PublicKey]> {
+    const result = await Promise.all([
+      this.createToken(connection, this.mintA),
+      this.createToken(connection, this.mintB),
+    ]);
+    return result;
+  }
+  /**
+   * Mint tokens to the token accounts
+   * @param connection
+   * @param tokenAccountA
+   * @param tokenAccountB
+   * @param amounts
+   */
+  public async mintToTokenPair(
+    connection: Connection,
+    tokenAccountA: PublicKey,
+    tokenAccountB: PublicKey,
+    amountA: bigint,
+    amountB: bigint
+  ): Promise<void> {
+    await Promise.all([
+      mintTo(
+        connection,
+        this.payer,
+        this.mintA,
+        tokenAccountA,
+        this.owner,
+        amountA,
+        [],
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      ),
+      mintTo(
+        connection,
+        this.payer,
+        this.mintB,
+        tokenAccountB,
+        this.owner,
+        amountB,
+        [],
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      ),
+    ]);
+  }
+  public async approveForPair(
+    connection: Connection,
+    tokenAccountA: PublicKey,
+    tokenAccountB: PublicKey,
+    delegate_authority: PublicKey,
+    amountA: bigint,
+    amountB: bigint
+  ): Promise<void> {
+    await Promise.all([
+      approve(
+        connection,
+        this.payer,
+        tokenAccountA,
+        delegate_authority,
+        this.owner,
+        amountA,
+        [],
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      ),
+      approve(
+        connection,
+        this.payer,
+        tokenAccountB,
+        delegate_authority,
+        this.owner,
+        amountB,
+        [],
+        undefined,
+        TOKEN_2022_PROGRAM_ID
+      ),
+    ]);
+  }
+  public async getPoolMint(connection: Connection): Promise<Mint> {
+    return getMint(connection, this.poolMint, undefined, TOKEN_2022_PROGRAM_ID);
   }
 }

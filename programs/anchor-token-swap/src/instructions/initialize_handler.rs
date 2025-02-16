@@ -19,14 +19,17 @@ pub fn initialize_handler(
     let calculator = &swap_curve.calculator;
     fees.validate()?;
     calculator.validate()?;
-    calculator.validate_supply(ctx.accounts.token_a.amount, ctx.accounts.token_b.amount)?;
+    calculator.validate_supply(
+        ctx.accounts.swap_token_a.amount,
+        ctx.accounts.swap_token_b.amount,
+    )?;
     let initial_amount = swap_curve.calculator.new_pool_supply();
     anchor_spl::token_interface::mint_to(
         CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
             anchor_spl::token_interface::MintTo {
                 mint: ctx.accounts.pool_mint.to_account_info(),
-                to: ctx.accounts.fee_account.to_account_info(),
+                to: ctx.accounts.pool_token_reciever.to_account_info(),
                 authority: ctx.accounts.authority.to_account_info(),
             },
             &[&[
@@ -40,12 +43,12 @@ pub fn initialize_handler(
     *ctx.accounts.swap_v1 = SwapV1 {
         is_initialized: true,
         token_program_id: TOKEN_2022_PROGRAM_ID,
-        token_a: *ctx.accounts.token_a.to_account_info().key,
-        token_b: *ctx.accounts.token_b.to_account_info().key,
+        token_a: *ctx.accounts.swap_token_a.to_account_info().key,
+        token_b: *ctx.accounts.swap_token_b.to_account_info().key,
         pool_mint: *ctx.accounts.pool_mint.to_account_info().key,
-        token_a_mint: ctx.accounts.token_a.mint,
-        token_b_mint: ctx.accounts.token_b.mint,
-        pool_fee_account: *ctx.accounts.fee_account.to_account_info().key,
+        token_a_mint: ctx.accounts.swap_token_a.mint,
+        token_b_mint: ctx.accounts.swap_token_b.mint,
+        pool_fee_account: *ctx.accounts.pool_fee_account.to_account_info().key,
         fees,
         curve_type,
     };
@@ -68,41 +71,42 @@ pub struct Initialize<'info> {
     pub authority: AccountInfo<'info>,
     #[account(
         token::token_program = token_program.key(),
-        // token::delegate = None todo validate the delegate & close_authority
-        constraint = token_a.delegate.is_none() @ SwapError::InvalidDelegate,
-        constraint = token_a.mint != token_b.mint @ SwapError::RepeatedMint,
-        constraint = token_a.owner != authority.key() @ SwapError::InvalidOwner,
+      constraint = swap_token_a.delegate.is_none() @ SwapError::InvalidDelegate,
+        constraint = swap_token_a.mint != swap_token_b.mint @ SwapError::RepeatedMint,
+        constraint = swap_token_a.owner == authority.key() @ SwapError::InvalidOwner,
+        constraint = swap_token_a.close_authority.is_none() @ SwapError::InvalidCloseAuthority,
     )]
-    pub token_a: InterfaceAccount<'info, TokenAccount>,
+    pub swap_token_a: InterfaceAccount<'info, TokenAccount>,
     #[account(
         token::token_program = token_program.key(),
-        constraint = token_b.owner != authority.key() @ SwapError::InvalidOwner,
-        constraint = token_b.delegate.is_none() @ SwapError::InvalidDelegate,
-
+        constraint = swap_token_b.owner == authority.key() @ SwapError::InvalidOwner,
+        constraint = swap_token_b.delegate.is_none() @ SwapError::InvalidDelegate,
+        constraint = swap_token_b.close_authority.is_none() @ SwapError::InvalidCloseAuthority,
     )]
-    pub token_b: InterfaceAccount<'info, TokenAccount>,
+    pub swap_token_b: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut,
         mint::authority = authority.key(),
         mint::token_program = token_program.key(),
         constraint = pool_mint.supply == 0 @ SwapError::InvalidSupply,
+        constraint = pool_mint.freeze_authority.is_none() @ SwapError::InvalidFreezeAuthority,
     )]
     pub pool_mint: InterfaceAccount<'info, Mint>,
     #[account(
         mut,
         token::mint = pool_mint.key(),
         token::token_program = token_program.key(),
-        constraint = destination.owner != authority.key() @ SwapError::InvalidOwner
+        constraint = pool_token_reciever.owner != authority.key() @ SwapError::InvalidOwner
     )]
-    pub destination: InterfaceAccount<'info, TokenAccount>,
+    pub pool_token_reciever: InterfaceAccount<'info, TokenAccount>,
     #[account(
         mut,
         token::mint = pool_mint.key(),
         token::token_program = token_program.key(),
-        constraint = fee_account.owner != authority.key() @ SwapError::InvalidOwner
+        constraint = pool_fee_account.owner != authority.key() @ SwapError::InvalidOwner
     )]
-    pub fee_account: InterfaceAccount<'info, TokenAccount>,
+    pub pool_fee_account: InterfaceAccount<'info, TokenAccount>,
     #[account(mut)]
     pub payer: Signer<'info>,
     #[account()]

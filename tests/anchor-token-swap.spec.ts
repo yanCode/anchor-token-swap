@@ -6,8 +6,6 @@ import {
   approve,
   createAccount,
   getAccount,
-  getMint,
-  mintTo,
   TOKEN_2022_PROGRAM_ID,
 } from "@solana/spl-token";
 import { Keypair } from "@solana/web3.js";
@@ -46,8 +44,8 @@ describe("anchor-token-swap", () => {
     tokenSwapTest = await TokenSwapTest.init(connection, program.programId);
   });
 
-  it("Is initialized!", async () => {
-    let tx = await program.methods
+  it("It should initialized!", async () => {
+    await program.methods
       .initialize(
         {
           constantProduct: {},
@@ -65,35 +63,30 @@ describe("anchor-token-swap", () => {
       )
       .accounts({
         swapV1: tokenSwapTest.tokenSwapAccount.publicKey,
-        tokenA: tokenSwapTest.tokenAccountA,
-        tokenB: tokenSwapTest.tokenAccountB,
-        poolMint: tokenSwapTest.tokenPool,
-        destination: tokenSwapTest.tokenAccountPool,
-        feeAccount: tokenSwapTest.feeAccount,
+        swapTokenA: tokenSwapTest.swapTokenA,
+        swapTokenB: tokenSwapTest.swapTokenB,
+        poolMint: tokenSwapTest.poolMint,
+        poolTokenReciever: tokenSwapTest.userPoolTokenReciever,
+        poolFeeAccount: tokenSwapTest.poolFeeAccount,
       })
       .signers([tokenSwapTest.tokenSwapAccount])
-      .rpc({ commitment: "confirmed" });
+      .rpc();
   });
 
-  it("test depositAllTokenTypes", async () => {
-    const poolMint = await getMint(
-      connection,
-      tokenSwapTest.tokenPool,
-      undefined,
-      TOKEN_2022_PROGRAM_ID
-    );
+  it("it should depositAllTokenTypes", async () => {
+    const poolMint = await tokenSwapTest.getPoolMint(connection);
     const supply = poolMint.supply;
 
     const [swapTokenA, swapTokenB] = await Promise.all([
       getAccount(
         connection,
-        tokenSwapTest.tokenAccountA,
+        tokenSwapTest.swapTokenA,
         undefined,
         TOKEN_2022_PROGRAM_ID
       ),
       getAccount(
         connection,
-        tokenSwapTest.tokenAccountB,
+        tokenSwapTest.swapTokenB,
         undefined,
         TOKEN_2022_PROGRAM_ID
       ),
@@ -104,82 +97,29 @@ describe("anchor-token-swap", () => {
     const amountOftokenB =
       (swapTokenB.amount * BigInt(POOL_TOKEN_AMOUNT)) / supply;
     const userTransferAuthority = Keypair.generate();
-
-    const [userAccountA, userAccountB] = await Promise.all([
-      createAccount(
-        connection,
-        tokenSwapTest.payer,
-        tokenSwapTest.mintA,
-        tokenSwapTest.owner.publicKey,
-        Keypair.generate(),
-        undefined,
-        TOKEN_2022_PROGRAM_ID
-      ),
-      createAccount(
-        connection,
-        tokenSwapTest.payer,
-        tokenSwapTest.mintB,
-        tokenSwapTest.owner.publicKey,
-        Keypair.generate(),
-        undefined,
-        TOKEN_2022_PROGRAM_ID
-      ),
-    ]);
-
-    await Promise.all([
-      mintTo(
-        connection,
-        tokenSwapTest.payer,
-        tokenSwapTest.mintA,
-        userAccountA,
-        tokenSwapTest.owner,
-        amountOftokenA,
-        [],
-        undefined,
-        TOKEN_2022_PROGRAM_ID
-      ),
-      mintTo(
-        connection,
-        tokenSwapTest.payer,
-        tokenSwapTest.mintB,
-        userAccountB,
-        tokenSwapTest.owner,
-        amountOftokenB,
-        [],
-        undefined,
-        TOKEN_2022_PROGRAM_ID
-      ),
-    ]);
-
-    await Promise.all([
-      approve(
-        connection,
-        tokenSwapTest.payer,
-        userAccountA,
-        userTransferAuthority.publicKey,
-        tokenSwapTest.owner,
-        amountOftokenA,
-        [],
-        undefined,
-        TOKEN_2022_PROGRAM_ID
-      ),
-      approve(
-        connection,
-        tokenSwapTest.payer,
-        userAccountB,
-        userTransferAuthority.publicKey,
-        tokenSwapTest.owner,
-        amountOftokenB,
-        [],
-        undefined,
-        TOKEN_2022_PROGRAM_ID
-      ),
-    ]);
+    const [userAccountA, userAccountB] = await tokenSwapTest.createTokenPair(
+      connection
+    );
+    await tokenSwapTest.mintToTokenPair(
+      connection,
+      userAccountA,
+      userAccountB,
+      amountOftokenA,
+      amountOftokenB
+    );
+    await tokenSwapTest.approveForPair(
+      connection,
+      userAccountA,
+      userAccountB,
+      userTransferAuthority.publicKey,
+      amountOftokenA,
+      amountOftokenB
+    );
 
     const newAccountPoolToken = await createAccount(
       connection,
       tokenSwapTest.payer,
-      tokenSwapTest.tokenPool,
+      tokenSwapTest.poolMint,
       tokenSwapTest.owner.publicKey,
       Keypair.generate(),
       undefined,
@@ -198,41 +138,25 @@ describe("anchor-token-swap", () => {
         userTransferAuthority: userTransferAuthority.publicKey,
         sourceA: userAccountA,
         sourceB: userAccountB,
-        tokenA: tokenSwapTest.tokenAccountA,
-        tokenB: tokenSwapTest.tokenAccountB,
+        tokenA: tokenSwapTest.swapTokenA,
+        tokenB: tokenSwapTest.swapTokenB,
         tokenAMint: tokenSwapTest.mintA,
         tokenBMint: tokenSwapTest.mintB,
-        poolMint: tokenSwapTest.tokenPool,
+        poolMint: tokenSwapTest.poolMint,
         destination: newAccountPoolToken,
-        poolFeeAccount: tokenSwapTest.feeAccount,
+        poolFeeAccount: tokenSwapTest.poolFeeAccount,
       })
       .signers([tokenSwapTest.payer, userTransferAuthority])
       .rpc({ commitment: "confirmed" });
   });
 
-  it("test withdrawAllTokenTypes", async () => {
-    const poolMint = await getMint(
-      connection,
-      tokenSwapTest.tokenPool,
-      undefined,
-      TOKEN_2022_PROGRAM_ID
-    );
+  it("it should withdrawAllTokenTypes", async () => {
+    const poolMint = await tokenSwapTest.getPoolMint(connection);
     const supply = poolMint.supply;
 
-    const [swapTokenA, swapTokenB] = await Promise.all([
-      getAccount(
-        connection,
-        tokenSwapTest.tokenAccountA,
-        undefined,
-        TOKEN_2022_PROGRAM_ID
-      ),
-      getAccount(
-        connection,
-        tokenSwapTest.tokenAccountB,
-        undefined,
-        TOKEN_2022_PROGRAM_ID
-      ),
-    ]);
+    const [swapTokenA, swapTokenB] = await tokenSwapTest.getSwapTokenAccounts(
+      connection
+    );
     let feeAmount =
       (BigInt(POOL_TOKEN_AMOUNT) * BigInt(OWNER_WITHDRAW_FEE_NUMERATOR)) /
       BigInt(OWNER_WITHDRAW_FEE_DENOMINATOR);
@@ -242,33 +166,15 @@ describe("anchor-token-swap", () => {
       (swapTokenA.amount * BigInt(poolTokenAmount)) / supply;
     const amountOftokenB =
       (swapTokenB.amount * BigInt(poolTokenAmount)) / supply;
-
-    const [userAccountA, userAccountB] = await Promise.all([
-      createAccount(
-        connection,
-        tokenSwapTest.payer,
-        tokenSwapTest.mintA,
-        tokenSwapTest.owner.publicKey,
-        Keypair.generate(),
-        undefined,
-        TOKEN_2022_PROGRAM_ID
-      ),
-      createAccount(
-        connection,
-        tokenSwapTest.payer,
-        tokenSwapTest.mintB,
-        tokenSwapTest.owner.publicKey,
-        Keypair.generate(),
-        undefined,
-        TOKEN_2022_PROGRAM_ID
-      ),
-    ]);
+    const [userAccountA, userAccountB] = await tokenSwapTest.createTokenPair(
+      connection
+    );
     const userTransferAuthority = Keypair.generate();
 
     await approve(
       connection,
       tokenSwapTest.payer,
-      tokenSwapTest.tokenAccountPool,
+      tokenSwapTest.userPoolTokenReciever, //todo use a new account for the receiver
       userTransferAuthority.publicKey,
       tokenSwapTest.owner,
       POOL_TOKEN_AMOUNT,
@@ -277,9 +183,9 @@ describe("anchor-token-swap", () => {
       TOKEN_2022_PROGRAM_ID
     );
 
-    await program.methods
+    const tx = await program.methods
       .withdrawAllTokenTypes(
-        new BN(poolTokenAmount.toString()),
+        new BN(POOL_TOKEN_AMOUNT.toString()),
         new BN(amountOftokenA.toString()),
         new BN(amountOftokenB.toString())
       )
@@ -289,15 +195,15 @@ describe("anchor-token-swap", () => {
         userTransferAuthority: userTransferAuthority.publicKey,
         destinationA: userAccountA,
         destinationB: userAccountB,
-        source: tokenSwapTest.tokenAccountPool,
-        tokenA: tokenSwapTest.tokenAccountA,
-        tokenB: tokenSwapTest.tokenAccountB,
+        userPoolTokenSource: tokenSwapTest.userPoolTokenReciever,
+        swapTokenA: tokenSwapTest.swapTokenA,
+        swapTokenB: tokenSwapTest.swapTokenB,
         tokenAMint: tokenSwapTest.mintA,
         tokenBMint: tokenSwapTest.mintB,
-        poolMint: tokenSwapTest.tokenPool,
-        poolFeeAccount: tokenSwapTest.feeAccount,
+        poolMint: tokenSwapTest.poolMint,
+        poolFeeAccount: tokenSwapTest.poolFeeAccount,
       })
       .signers([tokenSwapTest.payer, userTransferAuthority])
-      .rpc({ commitment: "confirmed" });
+      .rpc();
   });
 });

@@ -17,7 +17,7 @@ pub mod anchor_token_swap {
         validate_swap_constraints(
             &curve_type,
             &fees,
-            ctx.accounts.fee_account.owner,
+            ctx.accounts.pool_fee_account.owner,
             None
         )
         validate_mint_uncloseable(&ctx.accounts.pool_mint)
