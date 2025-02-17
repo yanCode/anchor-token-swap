@@ -117,6 +117,15 @@ pub enum TradeDirection {
     BtoA,
 }
 
+impl TradeDirection {
+    pub fn opposite(&self) -> TradeDirection {
+        match self {
+            TradeDirection::AtoB => TradeDirection::BtoA,
+            TradeDirection::BtoA => TradeDirection::AtoB,
+        }
+    }
+}
+
 pub enum RoundDirection {
     /// Floor the value, ie. 1.9 => 1, 1.1 => 1, 1.5 => 1
     Floor,

@@ -20,3 +20,6 @@ no-log-ix-name = []
 anchor-lang = {git = "https://github.com/coral-xyz/anchor", rev = "a7a23eea"}
 anchor-spl = {git = "https://github.com/coral-xyz/anchor", rev = "a7a23eea"}
 spl-math = {version = "0.3.0", features = ["no-entrypoint"]}
+
+[dev-dependencies]
+proptest = "1.6"
