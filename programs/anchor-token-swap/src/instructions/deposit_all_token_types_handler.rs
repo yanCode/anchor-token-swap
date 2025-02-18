@@ -120,23 +120,25 @@ pub struct DepositAllTokenTypes<'info> {
     pub user_transfer_authority: Signer<'info>,
     #[account(
       mut,
-      token::mint = token_a.mint,
-      constraint = source_a.key() != token_a.key() @ SwapError::InvalidInput
+      token::mint = token_a_mint.key(),
+      constraint = source_a.key() != token_a.key() @ SwapError::InvalidInput,
     )]
     pub source_a: InterfaceAccount<'info, TokenAccount>,
     #[account(
       mut,
-      token::mint = token_b.mint,
-      constraint = source_b.key() != token_b.key() @ SwapError::InvalidInput
+      token::mint = token_b_mint.key(),
+      constraint = source_b.key() != token_b.key() @ SwapError::InvalidInput,
     )]
     pub source_b: InterfaceAccount<'info, TokenAccount>,
     #[account(
       mut,
+      token::mint = token_a_mint.key(),
       constraint = token_a.key() == swap_v1.token_a @ SwapError::InvalidInput,
     )]
     pub token_a: InterfaceAccount<'info, TokenAccount>,
     #[account(
       mut,
+      token::mint = token_b_mint.key(),
       constraint = token_b.key() == swap_v1.token_b @ SwapError::InvalidInput,
     )]
     pub token_b: InterfaceAccount<'info, TokenAccount>,

@@ -69,7 +69,6 @@ pub struct Initialize<'info> {
     )]
     pub authority: AccountInfo<'info>,
     #[account(
-        token::token_program = token_program.key(),
       constraint = swap_token_a.delegate.is_none() @ SwapError::InvalidDelegate,
         constraint = swap_token_a.mint != swap_token_b.mint @ SwapError::RepeatedMint,
         constraint = swap_token_a.owner == authority.key() @ SwapError::InvalidOwner,
@@ -77,9 +76,8 @@ pub struct Initialize<'info> {
     )]
     pub swap_token_a: InterfaceAccount<'info, TokenAccount>,
     #[account(
-        token::token_program = token_program.key(),
-        constraint = swap_token_b.owner == authority.key() @ SwapError::InvalidOwner,
         constraint = swap_token_b.delegate.is_none() @ SwapError::InvalidDelegate,
+        constraint = swap_token_b.owner == authority.key() @ SwapError::InvalidOwner,
         constraint = swap_token_b.close_authority.is_none() @ SwapError::InvalidCloseAuthority,
     )]
     pub swap_token_b: InterfaceAccount<'info, TokenAccount>,
@@ -95,14 +93,12 @@ pub struct Initialize<'info> {
     #[account(
         mut,
         token::mint = pool_mint.key(),
-        token::token_program = token_program.key(),
         constraint = pool_token_reciever.owner != authority.key() @ SwapError::InvalidOwner
     )]
     pub pool_token_reciever: InterfaceAccount<'info, TokenAccount>,
     #[account(
         mut,
         token::mint = pool_mint.key(),
-        token::token_program = token_program.key(),
         constraint = pool_fee_account.owner != authority.key() @ SwapError::InvalidOwner
     )]
     pub pool_fee_account: InterfaceAccount<'info, TokenAccount>,

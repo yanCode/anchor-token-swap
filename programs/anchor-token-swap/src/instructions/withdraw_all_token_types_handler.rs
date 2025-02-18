@@ -158,12 +158,14 @@ pub struct WithdrawAllTokenTypes<'info> {
     pub user_transfer_authority: Signer<'info>,
     #[account(
       mut,
+      token::mint = token_a_mint.key(),
       constraint = swap_token_a.owner == authority.key() @ SwapError::InvalidInput,
       constraint = swap_token_a.key() == swap_v1.token_a @ SwapError::InvalidInput,
     )]
     pub swap_token_a: InterfaceAccount<'info, TokenAccount>,
     #[account(
       mut,
+      token::mint = token_b_mint.key(),
       constraint = swap_token_a.owner == authority.key() @ SwapError::InvalidInput,
       constraint = swap_token_b.key() == swap_v1.token_b @ SwapError::InvalidInput,
     )]
@@ -175,14 +177,14 @@ pub struct WithdrawAllTokenTypes<'info> {
     pub pool_mint: InterfaceAccount<'info, Mint>,
     #[account(
       mut,
-      token::mint = swap_token_a.mint,
+      token::mint = token_a_mint.key(),
       constraint = destination_a.key() != swap_token_a.key() @ SwapError::InvalidInput
     )]
     pub destination_a: InterfaceAccount<'info, TokenAccount>,
     #[account(
       mut,
-      token::mint = swap_token_b.mint,
-      constraint = destination_b.key() != swap_token_b.key() @ SwapError::InvalidInput
+      token::mint = token_b_mint.key(),
+      constraint = destination_b.key() != swap_token_b.key() @ SwapError::InvalidInput,
     )]
     pub destination_b: InterfaceAccount<'info, TokenAccount>,
     #[account(
