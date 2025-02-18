@@ -5,8 +5,6 @@ use {
 };
 
 pub trait SwapState {
-    /// Is the swap initialized, with data written to it
-    fn is_initialized(&self) -> bool;
     /// Token program ID associated with the swap
     fn token_program_id(&self) -> &Pubkey;
     /// Address of token A liquidity account
@@ -41,8 +39,6 @@ pub enum SwapVersion {
 #[non_exhaustive]
 #[account]
 pub struct SwapV1 {
-    /// Initialized state.
-    pub is_initialized: bool,
     /// Bump seed used in program address.
     /// The program address is created deterministically with the bump seed,
     /// swap program id, and swap account pubkey.  This program address has
@@ -77,11 +73,6 @@ pub struct SwapV1 {
 }
 
 impl SwapState for SwapV1 {
-    #[inline]
-    fn is_initialized(&self) -> bool {
-        self.is_initialized
-    }
-
     #[inline]
     fn token_program_id(&self) -> &Pubkey {
         &self.token_program_id

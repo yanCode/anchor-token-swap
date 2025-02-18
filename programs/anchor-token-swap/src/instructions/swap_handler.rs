@@ -8,7 +8,6 @@ use {
     anchor_spl::{
         token_2022::{
             spl_token_2022::extension::transfer_fee::TransferFeeConfig, Token2022,
-            ID as TOKEN_2022_PROGRAM_ID,
         },
         token_interface::{get_mint_extension_data, Mint, TokenAccount},
     },
@@ -192,8 +191,8 @@ pub fn swap_handler(
 #[derive(Accounts)]
 pub struct TokenSwap<'info> {
     #[account(
-        constraint = token_swap.is_initialized @ SwapError::IncorrectSwapAccount,
-        constraint = token_swap.token_program_id == TOKEN_2022_PROGRAM_ID @ SwapError::IncorrectTokenProgramId
+        constraint = !token_swap.to_account_info().data_is_empty() @ SwapError::IncorrectSwapAccount,
+        constraint = token_swap.token_program_id == token_program.key() @ SwapError::IncorrectTokenProgramId
     )]
     pub token_swap: Account<'info, SwapV1>,
     #[account(

@@ -41,7 +41,6 @@ pub fn initialize_handler(
     )?;
 
     *ctx.accounts.swap_v1 = SwapV1 {
-        is_initialized: true,
         token_program_id: TOKEN_2022_PROGRAM_ID,
         token_a: *ctx.accounts.swap_token_a.to_account_info().key,
         token_b: *ctx.accounts.swap_token_b.to_account_info().key,

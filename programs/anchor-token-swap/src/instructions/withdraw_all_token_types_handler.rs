@@ -144,6 +144,10 @@ pub fn withdraw_all_token_types_handler(
 pub struct WithdrawAllTokenTypes<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
+    #[account(
+      constraint = !swap_v1.to_account_info().data_is_empty() @ SwapError::IncorrectSwapAccount,
+      constraint = swap_v1.token_program_id == token_program.key() @ SwapError::IncorrectTokenProgramId
+  )]
     pub swap_v1: Account<'info, SwapV1>,
     #[account(
       seeds = [swap_v1.key().as_ref()],

@@ -5,7 +5,7 @@ use {
     },
     anchor_lang::prelude::*,
     anchor_spl::{
-        token_2022::{Token2022, ID as TOKEN_2022_PROGRAM_ID},
+        token_2022::Token2022,
         token_interface::{Mint, TokenAccount},
     },
 };
@@ -107,8 +107,8 @@ pub struct DepositAllTokenTypes<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
     #[account(
-      constraint = swap_v1.is_initialized @ SwapError::IncorrectSwapAccount,
-      constraint = swap_v1.token_program_id == TOKEN_2022_PROGRAM_ID @ SwapError::IncorrectTokenProgramId
+      constraint = !swap_v1.to_account_info().data_is_empty() @ SwapError::IncorrectSwapAccount,
+      constraint = swap_v1.token_program_id == token_program.key() @ SwapError::IncorrectTokenProgramId
   )]
     pub swap_v1: Account<'info, SwapV1>,
     #[account(
