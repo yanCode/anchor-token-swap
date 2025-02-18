@@ -100,6 +100,7 @@ impl CurveCalculator for ConstantPriceCurve {
     /// Get the amount of pool tokens for the given amount of token A and B
     /// For the constant price curve, the total value of the pool is weighted
     /// by the price of token B.
+    #[inline]
     fn deposit_single_token_type(
         &self,
         source_amount: u128,
@@ -119,6 +120,7 @@ impl CurveCalculator for ConstantPriceCurve {
         )
     }
 
+    #[inline]
     fn withdraw_single_token_type_exact_out(
         &self,
         source_amount: u128,
@@ -139,6 +141,7 @@ impl CurveCalculator for ConstantPriceCurve {
         )
     }
 
+    #[inline]
     fn validate(&self) -> Result<()> {
         if self.token_b_price == 0 {
             err!(SwapError::InvalidCurve)
@@ -147,6 +150,7 @@ impl CurveCalculator for ConstantPriceCurve {
         }
     }
 
+    #[inline]
     fn validate_supply(&self, token_a_amount: u64, _token_b_amount: u64) -> Result<()> {
         if token_a_amount == 0 {
             return err!(SwapError::EmptySupply);
@@ -163,6 +167,7 @@ impl CurveCalculator for ConstantPriceCurve {
     ///
     /// At the end, we divide by 2 to normalize the value between the two token
     /// types.
+    #[inline]
     fn normalized_value(
         &self,
         swap_token_a_amount: u128,
@@ -190,6 +195,7 @@ impl CurveCalculator for ConstantPriceCurve {
 /// The constant product implementation uses the Balancer formulas found at
 /// <https://balancer.finance/whitepaper/#single-asset-deposit>, specifically
 /// in the case for 2 tokens, each weighted at 1/2.
+#[inline]
 pub fn trading_tokens_to_pool_tokens(
     token_b_price: u64,
     source_amount: u128,

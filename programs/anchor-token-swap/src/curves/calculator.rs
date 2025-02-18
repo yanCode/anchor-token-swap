@@ -16,6 +16,7 @@ pub trait CurveCalculator: Debug {
 
     /// Get the supply for a new pool
     /// The default implementation is a Balancer-style fixed initial supply
+    #[inline]
     fn new_pool_supply(&self) -> u128 {
         INITIAL_SWAP_POOL_AMOUNT
     }
@@ -36,6 +37,7 @@ pub trait CurveCalculator: Debug {
     /// Validate the given supply on initialization. This is useful for curves
     /// that allow zero supply on one or both sides, since the standard constant
     /// product curve must have a non-zero supply on both sides.
+    #[inline]
     fn validate_supply(&self, token_a_amount: u64, token_b_amount: u64) -> Result<()> {
         if token_a_amount == 0 {
             return err!(SwapError::EmptySupply);
@@ -109,7 +111,8 @@ pub trait CurveCalculator: Debug {
     ) -> Option<PreciseNumber>;
 }
 
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Clone, PartialEq, Copy)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub enum TradeDirection {
     /// Input token A, output token B
     AtoB,
@@ -118,6 +121,7 @@ pub enum TradeDirection {
 }
 
 impl TradeDirection {
+    #[inline]
     pub fn opposite(&self) -> TradeDirection {
         match self {
             TradeDirection::AtoB => TradeDirection::BtoA,
@@ -132,7 +136,7 @@ pub enum RoundDirection {
     /// Ceiling the value, ie. 1.9 => 2, 1.1 => 2, 1.5 => 2
     Ceiling,
 }
-#[derive(Debug)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct TradingTokenResult {
     /// Amount of token A
     pub token_a_amount: u128,
@@ -140,7 +144,8 @@ pub struct TradingTokenResult {
     pub token_b_amount: u128,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct SwapWithoutFeesResult {
     /// Amount of source token swapped
     pub source_amount_swapped: u128,
@@ -149,6 +154,7 @@ pub struct SwapWithoutFeesResult {
 }
 
 /// Helper function for mapping to SwapError::CalculationFailure
+#[inline]
 pub fn map_zero_to_none(x: u128) -> Option<u128> {
     if x == 0 {
         None

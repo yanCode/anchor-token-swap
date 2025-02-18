@@ -27,6 +27,7 @@ impl CurveCalculator for OffsetCurve {
     ///
     /// If the offset and token B are both close to u64::MAX, there can be
     /// overflow errors with the invariant.
+    #[inline]
     fn swap_without_fees(
         &self,
         source_amount: u128,
@@ -48,6 +49,7 @@ impl CurveCalculator for OffsetCurve {
 
     /// The conversion for the offset curve needs to take into account the
     /// offset
+    #[inline]
     fn pool_tokens_to_trading_tokens(
         &self,
         pool_tokens: u128,
@@ -68,6 +70,7 @@ impl CurveCalculator for OffsetCurve {
 
     /// Get the amount of pool tokens for the given amount of token A and B,
     /// taking into account the offset
+    #[inline]
     fn deposit_single_token_type(
         &self,
         source_amount: u128,
@@ -87,6 +90,7 @@ impl CurveCalculator for OffsetCurve {
         )
     }
 
+    #[inline]
     fn withdraw_single_token_type_exact_out(
         &self,
         source_amount: u128,
@@ -107,6 +111,7 @@ impl CurveCalculator for OffsetCurve {
         )
     }
 
+    #[inline]
     fn validate(&self) -> Result<()> {
         if self.token_b_offset == 0 {
             err!(SwapError::InvalidCurve)
@@ -115,6 +120,7 @@ impl CurveCalculator for OffsetCurve {
         }
     }
 
+    #[inline]
     fn validate_supply(&self, token_a_amount: u64, _token_b_amount: u64) -> Result<()> {
         if token_a_amount == 0 {
             return err!(SwapError::EmptySupply);
@@ -127,12 +133,14 @@ impl CurveCalculator for OffsetCurve {
     /// with 1 million of token A against an offset of 2 million token B,
     /// someone else can deposit 1 million A and 2 million B for LP tokens.
     /// The pool creator can then use their LP tokens to steal the 2 million B,
+    #[inline]
     fn allows_deposits(&self) -> bool {
         false
     }
 
     /// The normalized value of the offset curve simply needs to add the offset
     /// to the token B side before calculating
+    #[inline]
     fn normalized_value(
         &self,
         swap_token_a_amount: u128,

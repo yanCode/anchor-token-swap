@@ -15,6 +15,7 @@ pub struct ConstantProductCurve;
 /// This is guaranteed to work for all values such that:
 ///  - 1 <= swap_source_amount * swap_destination_amount <= u128::MAX
 ///  - 1 <= source_amount <= u64::MAX
+#[inline]
 pub fn swap(
     source_amount: u128,
     swap_source_amount: u128,
@@ -39,6 +40,7 @@ pub fn swap(
 ///
 /// The constant product implementation for this function gives the square root
 /// of the Uniswap invariant.
+#[inline]
 pub fn normalized_value(
     swap_token_a_amount: u128,
     swap_token_b_amount: u128,
@@ -55,6 +57,7 @@ pub fn normalized_value(
 /// The constant product implementation uses the Balancer formulas found at
 /// <https://balancer.finance/whitepaper/#single-asset-deposit>, specifically
 /// in the case for 2 tokens, each weighted at 1/2.
+#[inline]
 pub fn deposit_single_token_type(
     source_amount: u128,
     swap_token_a_amount: u128,

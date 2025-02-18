@@ -31,7 +31,7 @@ pub struct Fees {
     /// Host trading fee denominator
     pub host_fee_denominator: u64,
 }
-
+#[inline]
 fn validate_fraction(numerator: u64, denominator: u64) -> Result<()> {
     if denominator == 0 && numerator == 0 {
         Ok(())
@@ -42,6 +42,7 @@ fn validate_fraction(numerator: u64, denominator: u64) -> Result<()> {
     }
 }
 
+#[inline]
 pub fn calculate_fee(amount: u128, fee_numerator: u128, fee_denominator: u128) -> Option<u128> {
     if fee_numerator == 0 || fee_denominator == 0 {
         Some(0)
@@ -56,6 +57,7 @@ pub fn calculate_fee(amount: u128, fee_numerator: u128, fee_denominator: u128) -
         }
     }
 }
+#[inline]
 fn pre_fee_amount(
     post_fee_amount: u128,
     fee_numerator: u128,
@@ -71,6 +73,7 @@ fn pre_fee_amount(
         ceil_div(numerator, denominator)
     }
 }
+#[inline]
 fn ceil_div(dividend: u128, divisor: u128) -> Option<u128> {
     dividend
         .checked_add(divisor)?
@@ -78,6 +81,7 @@ fn ceil_div(dividend: u128, divisor: u128) -> Option<u128> {
         .checked_div(divisor)
 }
 impl Fees {
+    #[inline]
     pub fn validate(&self) -> Result<()> {
         validate_fraction(self.trade_fee_numerator, self.trade_fee_denominator)?;
         validate_fraction(
@@ -93,6 +97,7 @@ impl Fees {
     }
     /// Calculate the host fee based on the owner fee, only used in production
     /// situations where a program is hosted by multiple frontends
+    #[inline]
     pub fn host_fee(&self, owner_fee: u128) -> Option<u128> {
         calculate_fee(
             owner_fee,
@@ -101,6 +106,7 @@ impl Fees {
         )
     }
     /// Calculate the trading fee in trading tokens
+    #[inline]
     pub fn trading_fee(&self, trading_tokens: u128) -> Option<u128> {
         calculate_fee(
             trading_tokens,
@@ -111,6 +117,7 @@ impl Fees {
 
     /// Calculate the inverse trading amount, how much input is needed to give
     /// the provided output
+    #[inline]
     pub fn pre_trading_fee_amount(&self, post_fee_amount: u128) -> Option<u128> {
         if self.trade_fee_numerator == 0 || self.trade_fee_denominator == 0 {
             pre_fee_amount(
@@ -140,6 +147,7 @@ impl Fees {
     }
 
     /// Calculate the owner trading fee in trading tokens
+    #[inline]
     pub fn owner_trading_fee(&self, trading_tokens: u128) -> Option<u128> {
         calculate_fee(
             trading_tokens,
@@ -148,6 +156,7 @@ impl Fees {
         )
     }
     /// Calculate the withdraw fee in pool tokens
+    #[inline]
     pub fn owner_withdraw_fee(&self, pool_tokens: u128) -> Option<u128> {
         calculate_fee(
             pool_tokens,
