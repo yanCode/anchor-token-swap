@@ -6,9 +6,7 @@ use {
     },
     anchor_lang::prelude::*,
     anchor_spl::{
-        token_2022::{
-            spl_token_2022::extension::transfer_fee::TransferFeeConfig, Token2022,
-        },
+        token_2022::{spl_token_2022::extension::transfer_fee::TransferFeeConfig, Token2022},
         token_interface::{get_mint_extension_data, Mint, TokenAccount},
     },
 };

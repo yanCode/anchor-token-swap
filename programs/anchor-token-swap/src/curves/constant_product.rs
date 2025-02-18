@@ -1,13 +1,14 @@
 use {
     super::{
-        map_zero_to_none, CurveCalculator, RoundDirection, SwapWithoutFeesResult, TradeDirection,
-        TradingTokenResult, INITIAL_SWAP_POOL_AMOUNT,
+        map_zero_to_none, CurveCalculator, CurveCalculatorTrait, RoundDirection,
+        SwapWithoutFeesResult, TradeDirection, TradingTokenResult, INITIAL_SWAP_POOL_AMOUNT,
     },
     crate::SwapError,
     anchor_lang::prelude::*,
     spl_math::{checked_ceil_div::CheckedCeilDiv, precise_number::PreciseNumber},
 };
-#[derive(Debug)]
+#[derive(Clone, Default, PartialEq, Copy)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ConstantProductCurve;
 
 /// The constant product swap calculation, factored out of its class for reuse.
@@ -166,8 +167,8 @@ pub fn pool_tokens_to_trading_tokens(
         token_b_amount,
     })
 }
-
-impl CurveCalculator for ConstantProductCurve {
+impl CurveCalculator for ConstantProductCurve {}
+impl CurveCalculatorTrait for ConstantProductCurve {
     fn swap_without_fees(
         &self,
         source_amount: u128,

@@ -1,7 +1,7 @@
 use {
     super::{
-        map_zero_to_none, CurveCalculator, RoundDirection, SwapWithoutFeesResult, TradeDirection,
-        TradingTokenResult,
+        map_zero_to_none, CurveCalculator, CurveCalculatorTrait, RoundDirection,
+        SwapWithoutFeesResult, TradeDirection, TradingTokenResult,
     },
     crate::SwapError,
     anchor_lang::prelude::*,
@@ -9,13 +9,15 @@ use {
 };
 
 /// ConstantPriceCurve struct implementing CurveCalculator
-#[derive(Clone, Debug, Default, PartialEq, Copy)]
+#[derive(Clone, Default, PartialEq, Copy)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ConstantPriceCurve {
     /// Amount of token A required to get 1 token B
     pub token_b_price: u64,
 }
+impl CurveCalculator for ConstantPriceCurve {}
 
-impl CurveCalculator for ConstantPriceCurve {
+impl CurveCalculatorTrait for ConstantPriceCurve {
     /// Constant price curve always returns 1:1
     fn swap_without_fees(
         &self,

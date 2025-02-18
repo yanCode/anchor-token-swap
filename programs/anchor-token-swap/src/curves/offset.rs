@@ -1,8 +1,8 @@
 use {
     super::{
         deposit_single_token_type, normalized_value, pool_tokens_to_trading_tokens, swap,
-        withdraw_single_token_type_exact_out, CurveCalculator, RoundDirection,
-        SwapWithoutFeesResult, TradeDirection, TradingTokenResult,
+        withdraw_single_token_type_exact_out, CurveCalculator, CurveCalculatorTrait,
+        RoundDirection, SwapWithoutFeesResult, TradeDirection, TradingTokenResult,
     },
     crate::SwapError,
     anchor_lang::prelude::*,
@@ -11,13 +11,14 @@ use {
 
 /// Offset curve, uses ConstantProduct under the hood, but adds an offset to
 /// one side on swap calculations
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq, Copy)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct OffsetCurve {
     /// Amount to offset the token B liquidity account
     pub token_b_offset: u64,
 }
-
-impl CurveCalculator for OffsetCurve {
+impl CurveCalculator for OffsetCurve {}
+impl CurveCalculatorTrait for OffsetCurve {
     /// Constant product swap ensures token a * (token b + offset) = constant
     /// This is guaranteed to work for all values such that:
     ///

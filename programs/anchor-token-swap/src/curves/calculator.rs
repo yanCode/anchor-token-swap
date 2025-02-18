@@ -1,9 +1,13 @@
 use {
     super::INITIAL_SWAP_POOL_AMOUNT, crate::SwapError, anchor_lang::prelude::*,
-    spl_math::precise_number::PreciseNumber, std::fmt::Debug,
+    spl_math::precise_number::PreciseNumber,
 };
 
-pub trait CurveCalculator: Debug {
+#[cfg(feature = "debug")]
+pub trait CurveCalculator: CurveCalculatorTrait + Debug {}
+#[cfg(not(feature = "debug"))]
+pub trait CurveCalculator: CurveCalculatorTrait {}
+pub trait CurveCalculatorTrait {
     /// Calculate how much destination token will be provided given an amount
     /// of source token.
     fn swap_without_fees(
