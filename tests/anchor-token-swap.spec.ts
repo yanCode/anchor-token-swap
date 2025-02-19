@@ -5,10 +5,21 @@ import { TokenSwapTest } from "./token";
 import {
   approve,
   createAccount,
+  createApproveInstruction,
+  createInitializeAccountInstruction,
+  createMintToInstruction,
   getAccount,
+  getAccountLenForMint,
+  getMinimumBalanceForRentExemptAccount,
+  getMint,
   TOKEN_2022_PROGRAM_ID,
 } from "@solana/spl-token";
-import { Keypair } from "@solana/web3.js";
+import {
+  Keypair,
+  sendAndConfirmTransaction,
+  SystemProgram,
+  Transaction,
+} from "@solana/web3.js";
 
 let currentFeeAmount = 0n;
 
@@ -26,6 +37,8 @@ const HOST_FEE_DENOMINATOR = 100;
 // const DEFAULT_POOL_TOKEN_AMOUNT = 1000000000n;
 // Pool token amount to withdraw / deposit
 const POOL_TOKEN_AMOUNT = 10000000;
+const SWAP_AMOUNT_IN = 100000n;
+// const SWAP_AMOUNT_OUT = SWAP_PROGRAM_OWNER_FEE_ADDRESS ? 90661n : 90674n;
 
 describe("anchor-token-swap", () => {
   const provider = anchor.AnchorProvider.env();
@@ -205,5 +218,94 @@ describe("anchor-token-swap", () => {
       })
       .signers([tokenSwapTest.payer, userTransferAuthority])
       .rpc();
+  });
+  it("it should create account & swap in a single tx", async () => {
+    const userAccountA = Keypair.generate();
+    const mintAProgramId = (
+      await connection.getAccountInfo(tokenSwapTest.mintA, "confirmed")
+    ).owner;
+    const mintBProgramId = (
+      await connection.getAccountInfo(tokenSwapTest.mintB, "confirmed")
+    ).owner;
+    const mintA = await getMint(
+      connection,
+      tokenSwapTest.mintA,
+      "confirmed",
+      mintAProgramId
+    );
+    const space = getAccountLenForMint(mintA);
+    const lamports = await connection.getMinimumBalanceForRentExemption(space);
+    const createSystemAccountForUserTokenAInstruction =
+      SystemProgram.createAccount({
+        fromPubkey: tokenSwapTest.payer.publicKey,
+        newAccountPubkey: userAccountA.publicKey,
+        space,
+        programId: mintAProgramId,
+        lamports: lamports,
+      });
+    const createInitializeSwapTokenAInstruction =
+      createInitializeAccountInstruction(
+        userAccountA.publicKey,
+        tokenSwapTest.mintA,
+        tokenSwapTest.owner.publicKey,
+        mintAProgramId
+      );
+    const mintToUserTokenInstruction = createMintToInstruction(
+      tokenSwapTest.mintA,
+      userAccountA.publicKey,
+      tokenSwapTest.owner.publicKey,
+      SWAP_AMOUNT_IN,
+      [],
+      mintAProgramId
+    );
+    const balanceNeeded = await getMinimumBalanceForRentExemptAccount(
+      connection
+    );
+    const newAccount = Keypair.generate();
+
+    const createSystemAccountForNewAccountAInstruction =
+      SystemProgram.createAccount({
+        fromPubkey: tokenSwapTest.payer.publicKey,
+        newAccountPubkey: newAccount.publicKey,
+        space,
+        programId: mintAProgramId,
+        lamports: balanceNeeded,
+      });
+    const userTransferAuthority = Keypair.generate();
+    const approveUserTokenInstruction = createApproveInstruction(
+      userAccountA.publicKey,
+      userTransferAuthority.publicKey,
+      tokenSwapTest.owner.publicKey,
+      SWAP_AMOUNT_IN,
+      [],
+      mintAProgramId
+    );
+    let swapInstruction = await program.methods
+      .swap(new BN(SWAP_AMOUNT_IN.toString()), new BN(0))
+      .accountsPartial({
+        payer: tokenSwapTest.payer.publicKey,
+        swapV1: tokenSwapTest.tokenSwapAccount.publicKey,
+        poolMint: tokenSwapTest.poolMint,
+        poolFeeAccount: tokenSwapTest.poolFeeAccount,
+        userTransferAuthority: userTransferAuthority.publicKey,
+        destinationTokenMint: tokenSwapTest.mintB,
+      })
+      .instruction();
+
+    const tx = new Transaction();
+    tx.add(createSystemAccountForUserTokenAInstruction);
+    tx.add(createInitializeSwapTokenAInstruction);
+    tx.add(mintToUserTokenInstruction);
+    tx.add(createSystemAccountForNewAccountAInstruction);
+    tx.add(approveUserTokenInstruction);
+    tx.add(swapInstruction);
+
+    let txDetails = await sendAndConfirmTransaction(connection, tx, [
+      tokenSwapTest.payer,
+      tokenSwapTest.owner,
+      userAccountA,
+      newAccount,
+    ]);
+    console.log(txDetails);
   });
 });
