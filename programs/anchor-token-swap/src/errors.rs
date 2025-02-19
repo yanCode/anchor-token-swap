@@ -106,4 +106,7 @@ pub enum SwapError {
     /// The pool fee account is invalid.
     #[msg("The pool fee account is invalid")]
     InvalidFeeAccount,
+    /// The source and swap source accounts are the same
+    #[msg("Cannot transfer between the same account")]
+    SameAccountTransfer,
 }

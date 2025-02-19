@@ -220,7 +220,7 @@ describe("anchor-token-swap", () => {
       .rpc();
   });
   it("it should create account & swap in a single tx", async () => {
-    const userAccountA = Keypair.generate();
+    const sourceUserAccountA = Keypair.generate();
     const mintAProgramId = (
       await connection.getAccountInfo(tokenSwapTest.mintA, "confirmed")
     ).owner;
@@ -238,21 +238,21 @@ describe("anchor-token-swap", () => {
     const createSystemAccountForUserTokenAInstruction =
       SystemProgram.createAccount({
         fromPubkey: tokenSwapTest.payer.publicKey,
-        newAccountPubkey: userAccountA.publicKey,
+        newAccountPubkey: sourceUserAccountA.publicKey,
         space,
         programId: mintAProgramId,
         lamports: lamports,
       });
     const createInitializeSwapTokenAInstruction =
       createInitializeAccountInstruction(
-        userAccountA.publicKey,
+        sourceUserAccountA.publicKey,
         tokenSwapTest.mintA,
         tokenSwapTest.owner.publicKey,
         mintAProgramId
       );
     const mintToUserTokenInstruction = createMintToInstruction(
       tokenSwapTest.mintA,
-      userAccountA.publicKey,
+      sourceUserAccountA.publicKey,
       tokenSwapTest.owner.publicKey,
       SWAP_AMOUNT_IN,
       [],
@@ -261,19 +261,26 @@ describe("anchor-token-swap", () => {
     const balanceNeeded = await getMinimumBalanceForRentExemptAccount(
       connection
     );
-    const newAccount = Keypair.generate();
+    const userDestinationTokenB = Keypair.generate();
 
-    const createSystemAccountForNewAccountAInstruction =
+    const createSystemAccountForUserDestinationAInstruction =
       SystemProgram.createAccount({
         fromPubkey: tokenSwapTest.payer.publicKey,
-        newAccountPubkey: newAccount.publicKey,
+        newAccountPubkey: userDestinationTokenB.publicKey,
         space,
-        programId: mintAProgramId,
+        programId: mintBProgramId,
         lamports: balanceNeeded,
       });
+    const createInitializeDestinationTokenBInstruction =
+      createInitializeAccountInstruction(
+        userDestinationTokenB.publicKey,
+        tokenSwapTest.mintB,
+        tokenSwapTest.owner.publicKey,
+        mintBProgramId
+      );
     const userTransferAuthority = Keypair.generate();
     const approveUserTokenInstruction = createApproveInstruction(
-      userAccountA.publicKey,
+      sourceUserAccountA.publicKey,
       userTransferAuthority.publicKey,
       tokenSwapTest.owner.publicKey,
       SWAP_AMOUNT_IN,
@@ -282,13 +289,18 @@ describe("anchor-token-swap", () => {
     );
     let swapInstruction = await program.methods
       .swap(new BN(SWAP_AMOUNT_IN.toString()), new BN(0))
-      .accountsPartial({
-        payer: tokenSwapTest.payer.publicKey,
-        swapV1: tokenSwapTest.tokenSwapAccount.publicKey,
+      .accounts({
+        tokenSwap: tokenSwapTest.tokenSwapAccount.publicKey,
+        swapSource: tokenSwapTest.swapTokenA,
+        source: sourceUserAccountA.publicKey,
+        swapDestination: tokenSwapTest.swapTokenB,
+        destination: userDestinationTokenB.publicKey,
         poolMint: tokenSwapTest.poolMint,
         poolFeeAccount: tokenSwapTest.poolFeeAccount,
         userTransferAuthority: userTransferAuthority.publicKey,
+        sourceTokenMint: tokenSwapTest.mintA,
         destinationTokenMint: tokenSwapTest.mintB,
+        hostFeeAccount: null,
       })
       .instruction();
 
@@ -296,16 +308,17 @@ describe("anchor-token-swap", () => {
     tx.add(createSystemAccountForUserTokenAInstruction);
     tx.add(createInitializeSwapTokenAInstruction);
     tx.add(mintToUserTokenInstruction);
-    tx.add(createSystemAccountForNewAccountAInstruction);
+    tx.add(createSystemAccountForUserDestinationAInstruction);
+    tx.add(createInitializeDestinationTokenBInstruction);
     tx.add(approveUserTokenInstruction);
     tx.add(swapInstruction);
 
-    let txDetails = await sendAndConfirmTransaction(connection, tx, [
+    await sendAndConfirmTransaction(connection, tx, [
       tokenSwapTest.payer,
       tokenSwapTest.owner,
-      userAccountA,
-      newAccount,
+      sourceUserAccountA,
+      userDestinationTokenB,
+      userTransferAuthority,
     ]);
-    console.log(txDetails);
   });
 });

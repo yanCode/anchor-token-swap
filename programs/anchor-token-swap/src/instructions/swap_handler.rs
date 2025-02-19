@@ -30,12 +30,11 @@ pub fn swap_handler(
         amount_in
     };
 
-    let trade_direction = if ctx.accounts.swap_source.key() == ctx.accounts.token_swap.token_a.key()
-    {
-        TradeDirection::AtoB
-    } else {
-        TradeDirection::BtoA
-    };
+    let trade_direction =
+        match ctx.accounts.swap_source.key() == ctx.accounts.token_swap.token_a.key() {
+            true => TradeDirection::AtoB,
+            false => TradeDirection::BtoA,
+        };
 
     let result = ctx
         .accounts
@@ -100,8 +99,8 @@ pub fn swap_handler(
         CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
             anchor_spl::token_interface::TransferChecked {
-                from: ctx.accounts.swap_source.to_account_info(),
-                to: ctx.accounts.source.to_account_info(),
+                from: ctx.accounts.source.to_account_info(),
+                to: ctx.accounts.swap_source.to_account_info(),
                 authority: ctx.accounts.user_transfer_authority.to_account_info(),
                 mint: ctx.accounts.source_token_mint.to_account_info(),
             },
@@ -170,14 +169,18 @@ pub fn swap_handler(
     }
 
     anchor_spl::token_interface::transfer_checked(
-        CpiContext::new(
+        CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
             anchor_spl::token_interface::TransferChecked {
                 from: ctx.accounts.swap_destination.to_account_info(),
                 to: ctx.accounts.destination.to_account_info(),
-                authority: ctx.accounts.user_transfer_authority.to_account_info(),
+                authority: ctx.accounts.authority.to_account_info(),
                 mint: ctx.accounts.destination_token_mint.to_account_info(),
             },
+            &[&[
+                &ctx.accounts.token_swap.key().to_bytes(),
+                &[ctx.bumps.authority],
+            ]],
         ),
         destination_transfer_amount,
         destination_mint_decimals,
@@ -198,51 +201,57 @@ pub struct TokenSwap<'info> {
         bump,
     )]
     pub authority: AccountInfo<'info>,
-    pub user_transfer_authority: UncheckedAccount<'info>,
-    pub source: InterfaceAccount<'info, TokenAccount>,
+    pub user_transfer_authority: Signer<'info>,
     #[account(
-        token::token_program = token_swap.token_program_id,
-        constraint = (swap_source.key() != token_swap.token_a.key()) && (swap_source.key() != token_swap.token_b.key())
-        @ SwapError::IncorrectSwapAccount,
+        mut,
+        token::mint = swap_source.mint,
+       constraint = source.key() != swap_source.key() @ SwapError::InvalidInput
+    )]
+    pub source: InterfaceAccount<'info, TokenAccount>,
 
-        constraint = swap_source.key() != source.key() @ SwapError::InvalidInput,
-        constraint = swap_source.key() != swap_destination.key() @ SwapError::InvalidInput
+    #[account(
+        mut,
+        token::mint = swap_source.mint,
+        constraint = (swap_source.key() == token_swap.token_a.key()) || (swap_source.key() == token_swap.token_b.key())
+        @ SwapError::IncorrectSwapAccount,
+        constraint = swap_source.key() != swap_destination.key() @ SwapError::SameAccountTransfer
     )]
     pub swap_source: InterfaceAccount<'info, TokenAccount>,
+
+    #[account(
+        mut,
+        token::mint = swap_destination.mint,
+        constraint = destination.key() != swap_destination.key() @ SwapError::SameAccountTransfer
+    )]
     pub destination: InterfaceAccount<'info, TokenAccount>,
     #[account(
-        token::token_program = token_swap.token_program_id,
-        constraint = (swap_destination.key() != token_swap.token_a.key()) && (swap_destination.key() != token_swap.token_b.key())
+        mut,
+        token::mint = swap_destination.mint,
+        constraint = (swap_destination.key() == token_swap.token_a.key()) || (swap_destination.key() == token_swap.token_b.key())
         @ SwapError::IncorrectSwapAccount,
-
-        constraint = swap_destination.key() != destination.key() @ SwapError::InvalidOutput
-
     )]
     pub swap_destination: InterfaceAccount<'info, TokenAccount>,
     #[account(
+        mut,
         mint::token_program = token_swap.token_program_id,
-        constraint = pool_mint.key() != token_swap.pool_mint.key() @ SwapError::IncorrectPoolMint
+        constraint = pool_mint.key() == token_swap.pool_mint.key() @ SwapError::IncorrectPoolMint
     )]
     pub pool_mint: InterfaceAccount<'info, Mint>,
     #[account(
-        token::token_program = token_swap.token_program_id,
+        mut,
         token::mint = pool_mint.key(),
         constraint = host_fee_account.owner != authority.key() @ SwapError::InvalidOwner
     )]
     pub host_fee_account: Option<InterfaceAccount<'info, TokenAccount>>,
     #[account(
-        token::token_program = token_swap.token_program_id,
-        constraint = pool_fee_account.key() != token_swap.pool_fee_account.key() @ SwapError::InvalidFeeAccount
+        mut,
+        token::mint = pool_mint.key(),
+        constraint = pool_fee_account.key() == token_swap.pool_fee_account.key() @ SwapError::InvalidFeeAccount
     )]
     pub pool_fee_account: InterfaceAccount<'info, TokenAccount>,
-    #[account(
-        mint::token_program = token_swap.token_program_id,
-        mint::authority = authority.key(),
-    )]
+    #[account()]
     pub source_token_mint: InterfaceAccount<'info, Mint>,
     #[account(
-        mint::token_program = token_swap.token_program_id,
-        mint::authority = authority.key(),
         constraint = destination_token_mint.key() != source_token_mint.key() @ SwapError::RepeatedMint
     )]
     pub destination_token_mint: InterfaceAccount<'info, Mint>,
