@@ -4,10 +4,7 @@ use {
         Fees, SwapError, SwapV1,
     },
     anchor_lang::prelude::*,
-    anchor_spl::{
-        token_2022::{Token2022, ID as TOKEN_2022_PROGRAM_ID},
-        token_interface::{Mint, TokenAccount},
-    },
+    anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface},
 };
 
 pub fn initialize_handler(
@@ -26,7 +23,7 @@ pub fn initialize_handler(
     let initial_amount = swap_curve.calculator.new_pool_supply();
     anchor_spl::token_interface::mint_to(
         CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.token_pool_program.to_account_info(),
             anchor_spl::token_interface::MintTo {
                 mint: ctx.accounts.pool_mint.to_account_info(),
                 to: ctx.accounts.pool_token_reciever.to_account_info(),
@@ -41,7 +38,6 @@ pub fn initialize_handler(
     )?;
 
     *ctx.accounts.swap_v1 = SwapV1 {
-        token_program_id: TOKEN_2022_PROGRAM_ID,
         token_a: *ctx.accounts.swap_token_a.to_account_info().key,
         token_b: *ctx.accounts.swap_token_b.to_account_info().key,
         pool_mint: *ctx.accounts.pool_mint.to_account_info().key,
@@ -85,7 +81,7 @@ pub struct Initialize<'info> {
     #[account(
         mut,
         mint::authority = authority.key(),
-        mint::token_program = token_program.key(),
+        mint::token_program = token_pool_program.key(),
         constraint = pool_mint.supply == 0 @ SwapError::InvalidSupply,
         constraint = pool_mint.freeze_authority.is_none() @ SwapError::InvalidFreezeAuthority,
     )]
@@ -104,7 +100,6 @@ pub struct Initialize<'info> {
     pub pool_fee_account: InterfaceAccount<'info, TokenAccount>,
     #[account(mut)]
     pub payer: Signer<'info>,
-    #[account()]
-    pub token_program: Program<'info, Token2022>,
+    pub token_pool_program: Interface<'info, TokenInterface>,
     pub system_program: Program<'info, System>,
 }

@@ -6,8 +6,8 @@ use {
     },
     anchor_lang::prelude::*,
     anchor_spl::{
-        token_2022::{spl_token_2022::extension::transfer_fee::TransferFeeConfig, Token2022},
-        token_interface::{get_mint_extension_data, Mint, TokenAccount},
+        token_2022::spl_token_2022::extension::transfer_fee::TransferFeeConfig,
+        token_interface::{get_mint_extension_data, Mint, TokenAccount, TokenInterface},
     },
 };
 pub fn swap_handler(
@@ -97,7 +97,7 @@ pub fn swap_handler(
     };
     anchor_spl::token_interface::transfer_checked(
         CpiContext::new(
-            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.token_source_program.to_account_info(),
             anchor_spl::token_interface::TransferChecked {
                 from: ctx.accounts.source.to_account_info(),
                 to: ctx.accounts.swap_source.to_account_info(),
@@ -134,7 +134,7 @@ pub fn swap_handler(
                     .ok_or(SwapError::FeeCalculationFailure)?;
                 anchor_spl::token_interface::mint_to(
                     CpiContext::new_with_signer(
-                        ctx.accounts.token_program.to_account_info(),
+                        ctx.accounts.token_pool_program.to_account_info(),
                         anchor_spl::token_interface::MintTo {
                             mint: ctx.accounts.pool_mint.to_account_info(),
                             to: host_fee_account.to_account_info(),
@@ -150,7 +150,7 @@ pub fn swap_handler(
             }
             anchor_spl::token_interface::mint_to(
                 CpiContext::new_with_signer(
-                    ctx.accounts.token_program.to_account_info(),
+                    ctx.accounts.token_pool_program.to_account_info(),
                     anchor_spl::token_interface::MintTo {
                         mint: ctx.accounts.pool_mint.to_account_info(),
                         to: ctx.accounts.pool_fee_account.to_account_info(),
@@ -170,7 +170,7 @@ pub fn swap_handler(
 
     anchor_spl::token_interface::transfer_checked(
         CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.token_destination_program.to_account_info(),
             anchor_spl::token_interface::TransferChecked {
                 from: ctx.accounts.swap_destination.to_account_info(),
                 to: ctx.accounts.destination.to_account_info(),
@@ -193,7 +193,6 @@ pub fn swap_handler(
 pub struct TokenSwap<'info> {
     #[account(
         constraint = !token_swap.to_account_info().data_is_empty() @ SwapError::IncorrectSwapAccount,
-        constraint = token_swap.token_program_id == token_program.key() @ SwapError::IncorrectTokenProgramId
     )]
     pub token_swap: Account<'info, SwapV1>,
     #[account(
@@ -227,13 +226,14 @@ pub struct TokenSwap<'info> {
     #[account(
         mut,
         token::mint = swap_destination.mint,
+        token::token_program = token_destination_program.key(),
         constraint = (swap_destination.key() == token_swap.token_a.key()) || (swap_destination.key() == token_swap.token_b.key())
         @ SwapError::IncorrectSwapAccount,
     )]
     pub swap_destination: InterfaceAccount<'info, TokenAccount>,
     #[account(
         mut,
-        mint::token_program = token_swap.token_program_id,
+        mint::token_program = token_pool_program.key(),
         constraint = pool_mint.key() == token_swap.pool_mint.key() @ SwapError::IncorrectPoolMint
     )]
     pub pool_mint: InterfaceAccount<'info, Mint>,
@@ -249,13 +249,17 @@ pub struct TokenSwap<'info> {
         constraint = pool_fee_account.key() == token_swap.pool_fee_account.key() @ SwapError::InvalidFeeAccount
     )]
     pub pool_fee_account: InterfaceAccount<'info, TokenAccount>,
-    #[account()]
+    #[account(
+        mint::token_program = token_source_program.key(),
+    )]
     pub source_token_mint: InterfaceAccount<'info, Mint>,
     #[account(
+        mint::token_program = token_destination_program.key(),
         constraint = destination_token_mint.key() != source_token_mint.key() @ SwapError::RepeatedMint
     )]
     pub destination_token_mint: InterfaceAccount<'info, Mint>,
 
-    pub token_program: Program<'info, Token2022>,
-    pub system_program: Program<'info, System>,
+    pub token_source_program: Interface<'info, TokenInterface>,
+    pub token_destination_program: Interface<'info, TokenInterface>,
+    pub token_pool_program: Interface<'info, TokenInterface>,
 }

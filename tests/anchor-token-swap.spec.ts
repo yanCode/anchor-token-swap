@@ -81,6 +81,7 @@ describe("anchor-token-swap", () => {
         poolMint: tokenSwapTest.poolMint,
         poolTokenReciever: tokenSwapTest.userPoolTokenReciever,
         poolFeeAccount: tokenSwapTest.poolFeeAccount,
+        tokenPoolProgram: TOKEN_2022_PROGRAM_ID,
       })
       .signers([tokenSwapTest.tokenSwapAccount])
       .rpc();
@@ -158,6 +159,9 @@ describe("anchor-token-swap", () => {
         poolMint: tokenSwapTest.poolMint,
         destination: newAccountPoolToken,
         poolFeeAccount: tokenSwapTest.poolFeeAccount,
+        tokenPoolProgram: TOKEN_2022_PROGRAM_ID,
+        tokenAProgram: TOKEN_2022_PROGRAM_ID,
+        tokenBProgram: TOKEN_2022_PROGRAM_ID,
       })
       .signers([tokenSwapTest.payer, userTransferAuthority])
       .rpc({ commitment: "confirmed" });
@@ -215,6 +219,9 @@ describe("anchor-token-swap", () => {
         tokenBMint: tokenSwapTest.mintB,
         poolMint: tokenSwapTest.poolMint,
         poolFeeAccount: tokenSwapTest.poolFeeAccount,
+        tokenPoolProgram: TOKEN_2022_PROGRAM_ID,
+        tokenAProgram: TOKEN_2022_PROGRAM_ID,
+        tokenBProgram: TOKEN_2022_PROGRAM_ID,
       })
       .signers([tokenSwapTest.payer, userTransferAuthority])
       .rpc();
@@ -301,6 +308,9 @@ describe("anchor-token-swap", () => {
         sourceTokenMint: tokenSwapTest.mintA,
         destinationTokenMint: tokenSwapTest.mintB,
         hostFeeAccount: null,
+        tokenSourceProgram: TOKEN_2022_PROGRAM_ID,
+        tokenDestinationProgram: TOKEN_2022_PROGRAM_ID,
+        tokenPoolProgram: TOKEN_2022_PROGRAM_ID,
       })
       .instruction();
 

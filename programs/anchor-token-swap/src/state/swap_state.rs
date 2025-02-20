@@ -5,26 +5,24 @@ use {
 };
 
 pub trait SwapState {
-    /// Token program ID associated with the swap
-    fn token_program_id(&self) -> &Pubkey;
-    /// Address of token A liquidity account
+    // Address of token A liquidity account
     fn token_a_account(&self) -> &Pubkey;
-    /// Address of token B liquidity account
+    // Address of token B liquidity account
     fn token_b_account(&self) -> &Pubkey;
-    /// Address of pool token mint
+    // Address of pool token mint
     fn pool_mint(&self) -> &Pubkey;
 
-    /// Address of token A mint
+    // Address of token A mint
     fn token_a_mint(&self) -> &Pubkey;
-    /// Address of token B mint
+    // Address of token B mint
     fn token_b_mint(&self) -> &Pubkey;
 
-    /// Address of pool fee account
+    // Address of pool fee account
     fn pool_fee_account(&self) -> &Pubkey;
 
     // Fees associated with swap
     fn fees(&self) -> &Fees;
-    // /// Curve associated with swap
+    // Curve associated with swap
     fn swap_curve(&self) -> SwapCurve;
 }
 
@@ -39,16 +37,6 @@ pub enum SwapVersion {
 #[non_exhaustive]
 #[account]
 pub struct SwapV1 {
-    /// Bump seed used in program address.
-    /// The program address is created deterministically with the bump seed,
-    /// swap program id, and swap account pubkey.  This program address has
-    /// authority over the swap's token A account, token B account, and pool
-    /// token mint.
-    // pub bump_seed: u8,
-
-    /// Program ID of the tokens being exchanged.
-    pub token_program_id: Pubkey,
-
     /// Token A
     pub token_a: Pubkey,
     /// Token B
@@ -73,11 +61,6 @@ pub struct SwapV1 {
 }
 
 impl SwapState for SwapV1 {
-    #[inline]
-    fn token_program_id(&self) -> &Pubkey {
-        &self.token_program_id
-    }
-
     #[inline]
     fn token_a_account(&self) -> &Pubkey {
         &self.token_a

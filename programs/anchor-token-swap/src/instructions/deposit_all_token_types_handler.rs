@@ -4,10 +4,7 @@ use {
         SwapError, SwapV1,
     },
     anchor_lang::prelude::*,
-    anchor_spl::{
-        token_2022::Token2022,
-        token_interface::{Mint, TokenAccount},
-    },
+    anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface},
 };
 
 pub fn deposit_all_token_types_handler(
@@ -58,7 +55,7 @@ pub fn deposit_all_token_types_handler(
 
     anchor_spl::token_interface::transfer_checked(
         CpiContext::new(
-            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.token_a_program.to_account_info(),
             anchor_spl::token_interface::TransferChecked {
                 from: ctx.accounts.source_a.to_account_info(),
                 to: ctx.accounts.token_a.to_account_info(),
@@ -72,7 +69,7 @@ pub fn deposit_all_token_types_handler(
 
     anchor_spl::token_interface::transfer_checked(
         CpiContext::new(
-            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.token_b_program.to_account_info(),
             anchor_spl::token_interface::TransferChecked {
                 from: ctx.accounts.source_b.to_account_info(),
                 to: ctx.accounts.token_b.to_account_info(),
@@ -86,7 +83,7 @@ pub fn deposit_all_token_types_handler(
 
     anchor_spl::token_interface::mint_to(
         CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.token_pool_program.to_account_info(),
             anchor_spl::token_interface::MintTo {
                 mint: ctx.accounts.pool_mint.to_account_info(),
                 to: ctx.accounts.destination.to_account_info(),
@@ -108,7 +105,6 @@ pub struct DepositAllTokenTypes<'info> {
     pub payer: Signer<'info>,
     #[account(
       constraint = !swap_v1.to_account_info().data_is_empty() @ SwapError::IncorrectSwapAccount,
-      constraint = swap_v1.token_program_id == token_program.key() @ SwapError::IncorrectTokenProgramId
   )]
     pub swap_v1: Account<'info, SwapV1>,
     #[account(
@@ -144,14 +140,17 @@ pub struct DepositAllTokenTypes<'info> {
     pub token_b: InterfaceAccount<'info, TokenAccount>,
     #[account(
       mut,
+      mint::token_program = token_pool_program.key(),
       constraint = pool_mint.key() == swap_v1.pool_mint @ SwapError::IncorrectPoolMint,
     )]
     pub pool_mint: InterfaceAccount<'info, Mint>,
     #[account(
+      mint::token_program = token_a_program.key(),
       constraint = token_a_mint.key() == swap_v1.token_a_mint @ SwapError::InvalidInput,
     )]
     pub token_a_mint: InterfaceAccount<'info, Mint>,
     #[account(
+        mint::token_program = token_b_program.key(),
       constraint = token_b_mint.key() == swap_v1.token_b_mint @ SwapError::InvalidInput,
     )]
     pub token_b_mint: InterfaceAccount<'info, Mint>,
@@ -167,9 +166,8 @@ pub struct DepositAllTokenTypes<'info> {
      constraint = pool_fee_account.key() == swap_v1.pool_fee_account @ SwapError::InvalidInput,
     )]
     pub pool_fee_account: Option<InterfaceAccount<'info, TokenAccount>>,
-    #[account(
-      constraint = token_program.key() == swap_v1.token_program_id @ SwapError::InvalidInput,
-    )]
-    pub token_program: Program<'info, Token2022>,
+    pub token_pool_program: Interface<'info, TokenInterface>,
+    pub token_a_program: Interface<'info, TokenInterface>,
+    pub token_b_program: Interface<'info, TokenInterface>,
     pub system_program: Program<'info, System>,
 }

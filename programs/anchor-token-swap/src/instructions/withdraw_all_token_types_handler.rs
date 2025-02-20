@@ -4,10 +4,7 @@ use {
         SwapError, SwapState, SwapV1,
     },
     anchor_lang::prelude::*,
-    anchor_spl::{
-        token_2022::Token2022,
-        token_interface::{Mint, TokenAccount},
-    },
+    anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface},
     std::cmp::min,
 };
 
@@ -73,7 +70,7 @@ pub fn withdraw_all_token_types_handler(
     if withdraw_fee > 0 && ctx.accounts.pool_fee_account.is_some() {
         anchor_spl::token_interface::transfer_checked(
             CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
+                ctx.accounts.token_pool_program.to_account_info(),
                 anchor_spl::token_interface::TransferChecked {
                     from: ctx.accounts.user_pool_token_source.to_account_info(),
                     to: ctx
@@ -93,7 +90,7 @@ pub fn withdraw_all_token_types_handler(
     }
     anchor_spl::token_interface::burn_checked(
         CpiContext::new(
-            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.token_pool_program.to_account_info(),
             anchor_spl::token_interface::BurnChecked {
                 from: ctx.accounts.user_pool_token_source.to_account_info(),
                 authority: ctx.accounts.user_transfer_authority.to_account_info(),
@@ -107,7 +104,7 @@ pub fn withdraw_all_token_types_handler(
     if token_a_amount > 0 {
         anchor_spl::token_interface::transfer_checked(
             CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
+                ctx.accounts.token_a_program.to_account_info(),
                 anchor_spl::token_interface::TransferChecked {
                     from: ctx.accounts.swap_token_a.to_account_info(),
                     to: ctx.accounts.destination_a.to_account_info(),
@@ -123,7 +120,7 @@ pub fn withdraw_all_token_types_handler(
     if token_b_amount > 0 {
         anchor_spl::token_interface::transfer_checked(
             CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
+                ctx.accounts.token_b_program.to_account_info(),
                 anchor_spl::token_interface::TransferChecked {
                     from: ctx.accounts.swap_token_b.to_account_info(),
                     to: ctx.accounts.destination_b.to_account_info(),
@@ -146,7 +143,6 @@ pub struct WithdrawAllTokenTypes<'info> {
     pub payer: Signer<'info>,
     #[account(
       constraint = !swap_v1.to_account_info().data_is_empty() @ SwapError::IncorrectSwapAccount,
-      constraint = swap_v1.token_program_id == token_program.key() @ SwapError::IncorrectTokenProgramId
   )]
     pub swap_v1: Account<'info, SwapV1>,
     #[account(
@@ -172,6 +168,7 @@ pub struct WithdrawAllTokenTypes<'info> {
     pub swap_token_b: InterfaceAccount<'info, TokenAccount>,
     #[account(
       mut,
+      mint::token_program = token_pool_program.key(),
       constraint = pool_mint.key() == swap_v1.pool_mint @ SwapError::IncorrectPoolMint,
     )]
     pub pool_mint: InterfaceAccount<'info, Mint>,
@@ -188,10 +185,12 @@ pub struct WithdrawAllTokenTypes<'info> {
     )]
     pub destination_b: InterfaceAccount<'info, TokenAccount>,
     #[account(
+      mint::token_program = token_a_program.key(),
       constraint = token_a_mint.key() == swap_v1.token_a_mint @ SwapError::InvalidInput,
     )]
     pub token_a_mint: InterfaceAccount<'info, Mint>,
     #[account(
+      mint::token_program = token_b_program.key(),
       constraint = token_b_mint.key() == swap_v1.token_b_mint @ SwapError::InvalidInput,
     )]
     pub token_b_mint: InterfaceAccount<'info, Mint>,
@@ -208,8 +207,7 @@ pub struct WithdrawAllTokenTypes<'info> {
     )]
     pub user_pool_token_source: InterfaceAccount<'info, TokenAccount>,
     pub system_program: Program<'info, System>,
-    #[account(
-      constraint = token_program.key() == swap_v1.token_program_id
-    )]
-    pub token_program: Program<'info, Token2022>,
+    pub token_a_program: Interface<'info, TokenInterface>,
+    pub token_b_program: Interface<'info, TokenInterface>,
+    pub token_pool_program: Interface<'info, TokenInterface>,
 }
