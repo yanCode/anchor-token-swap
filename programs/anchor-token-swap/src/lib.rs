@@ -57,21 +57,21 @@ pub mod anchor_token_swap {
         )
     }
     pub fn deposit_single_token_type_exact_amount_in(
-        _ctx: Context<DepositSingleTokenTypeExactAmountIn>,
+        ctx: Context<DepositSingleTokenType>,
+        source_token_amount: u64,
+        slippage_amount: u64,
     ) -> Result<()> {
-        todo!()
+        instructions::deposit_single_token_type_exact_amount_in_handler(
+            ctx,
+            source_token_amount,
+            slippage_amount,
+        )
     }
     pub fn withdraw_single_token_type_exact_amount_out(
         _ctx: Context<WithdrawSingleTokenTypeExactAmountOut>,
     ) -> Result<()> {
         todo!()
     }
-}
-
-#[derive(Accounts)]
-pub struct DepositSingleTokenTypeExactAmountIn<'info> {
-    #[account(mut)]
-    pub payer: Signer<'info>,
 }
 
 #[derive(Accounts)]
