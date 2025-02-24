@@ -262,4 +262,5 @@ pub struct TokenSwap<'info> {
     pub token_source_program: Interface<'info, TokenInterface>,
     pub token_destination_program: Interface<'info, TokenInterface>,
     pub token_pool_program: Interface<'info, TokenInterface>,
+    pub system_program: Program<'info, System>,
 }
