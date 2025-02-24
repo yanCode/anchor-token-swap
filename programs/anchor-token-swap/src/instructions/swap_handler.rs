@@ -2,7 +2,7 @@ use {
     crate::{
         curves::{RoundDirection, TradeDirection},
         state::SwapState,
-        SwapError, SwapV1,
+        to_u64, SwapError, SwapV1,
     },
     anchor_lang::prelude::*,
     anchor_spl::{
@@ -50,7 +50,7 @@ pub fn swap_handler(
         .ok_or(SwapError::ZeroTradingTokens)?;
 
     let (source_transfer_amount, source_mint_decimals) = {
-        let source_amount_swapped = result.source_amount_swapped as u64;
+        let source_amount_swapped = to_u64(result.source_amount_swapped)?;
         let amount = if let Ok(ref config) = source_mint_transfer_fee_config {
             source_amount_swapped.saturating_sub(
                 config
@@ -67,7 +67,7 @@ pub fn swap_handler(
         &ctx.accounts.destination_token_mint.to_account_info(),
     );
     let (destination_transfer_amount, destination_mint_decimals) = {
-        let amount_out = result.destination_amount_swapped as u64;
+        let amount_out = to_u64(result.destination_amount_swapped)?;
         let amount_received = if let Ok(ref config) = destination_mint_transfer_fee_config {
             amount_out.saturating_sub(
                 config
@@ -145,7 +145,7 @@ pub fn swap_handler(
                             &[ctx.bumps.authority],
                         ]],
                     ),
-                    host_fee as u64,
+                    to_u64(host_fee)?,
                 )?;
             }
             anchor_spl::token_interface::mint_to(
@@ -161,7 +161,7 @@ pub fn swap_handler(
                         &[ctx.bumps.authority],
                     ]],
                 ),
-                pool_token_amount as u64,
+                to_u64(pool_token_amount)?,
             )?;
         }
         // let host_fee =

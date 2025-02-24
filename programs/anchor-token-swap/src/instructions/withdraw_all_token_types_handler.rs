@@ -1,7 +1,7 @@
 use {
     crate::{
         curves::{RoundDirection, SwapCurve},
-        SwapError, SwapState, SwapV1,
+        to_u64, SwapError, SwapState, SwapV1,
     },
     anchor_lang::prelude::*,
     anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface},
@@ -45,7 +45,7 @@ pub fn withdraw_all_token_types_handler(
         )
         .ok_or(SwapError::ZeroTradingTokens)?;
 
-    let mut token_a_amount = results.token_a_amount as u64;
+    let mut token_a_amount = to_u64(results.token_a_amount)?;
     token_a_amount = min(token_a_amount, ctx.accounts.swap_token_a.amount);
     require_gte!(
         token_a_amount,
@@ -56,7 +56,7 @@ pub fn withdraw_all_token_types_handler(
         token_a_amount != 0 || ctx.accounts.swap_token_a.amount == 0,
         SwapError::ZeroTradingTokens
     );
-    let mut token_b_amount = results.token_b_amount as u64;
+    let mut token_b_amount = to_u64(results.token_b_amount)?;
     token_b_amount = min(token_b_amount, ctx.accounts.swap_token_b.amount);
     require_gte!(
         token_b_amount,
@@ -84,7 +84,7 @@ pub fn withdraw_all_token_types_handler(
                 },
                 &[&[ctx.accounts.swap_v1.key().as_ref(), &[ctx.bumps.authority]]],
             ),
-            withdraw_fee as u64,
+            to_u64(withdraw_fee)?,
             ctx.accounts.pool_mint.decimals,
         )?;
     }

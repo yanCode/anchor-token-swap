@@ -79,3 +79,9 @@ pub struct WithdrawSingleTokenTypeExactAmountOut<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
 }
+
+pub fn to_u64(amount: u128) -> Result<u64> {
+    amount
+        .try_into()
+        .map_err(|_| SwapError::ConversionFailure.into())
+}

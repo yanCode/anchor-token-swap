@@ -1,7 +1,7 @@
 use {
     crate::{
         curves::{CurveType, SwapCurve},
-        Fees, SwapError, SwapV1,
+        to_u64, Fees, SwapError, SwapV1,
     },
     anchor_lang::prelude::*,
     anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface},
@@ -34,7 +34,7 @@ pub fn initialize_handler(
                 &[ctx.bumps.authority],
             ]],
         ),
-        initial_amount as u64,
+        to_u64(initial_amount)?,
     )?;
 
     *ctx.accounts.swap_v1 = SwapV1 {

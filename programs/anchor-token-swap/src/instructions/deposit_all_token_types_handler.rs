@@ -1,7 +1,7 @@
 use {
     crate::{
         curves::{RoundDirection, SwapCurve},
-        SwapError, SwapV1,
+        to_u64, SwapError, SwapV1,
     },
     anchor_lang::prelude::*,
     anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface},
@@ -36,8 +36,8 @@ pub fn deposit_all_token_types_handler(
             RoundDirection::Ceiling,
         )
         .ok_or(SwapError::ZeroTradingTokens)?;
-    let token_a_amount = results.token_a_amount as u64;
-    let token_b_amount = results.token_b_amount as u64;
+    let token_a_amount = to_u64(results.token_a_amount)?;
+    let token_b_amount = to_u64(results.token_b_amount)?;
 
     require_gte!(
         token_a_amount,
@@ -94,7 +94,7 @@ pub fn deposit_all_token_types_handler(
                 &[ctx.bumps.authority],
             ]],
         ),
-        pool_token_amount as u64,
+        to_u64(pool_token_amount)?,
     )?;
     Ok(())
 }
