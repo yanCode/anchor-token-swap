@@ -26,7 +26,7 @@ pub fn initialize_handler(
             ctx.accounts.token_pool_program.to_account_info(),
             anchor_spl::token_interface::MintTo {
                 mint: ctx.accounts.pool_mint.to_account_info(),
-                to: ctx.accounts.pool_token_reciever.to_account_info(),
+                to: ctx.accounts.user_pool_token.to_account_info(),
                 authority: ctx.accounts.authority.to_account_info(),
             },
             &[&[
@@ -89,9 +89,9 @@ pub struct Initialize<'info> {
     #[account(
         mut,
         token::mint = pool_mint.key(),
-        constraint = pool_token_reciever.owner != authority.key() @ SwapError::InvalidOwner
+        constraint = user_pool_token.owner != authority.key() @ SwapError::InvalidOwner
     )]
-    pub pool_token_reciever: InterfaceAccount<'info, TokenAccount>,
+    pub user_pool_token: InterfaceAccount<'info, TokenAccount>,
     #[account(
         mut,
         token::mint = pool_mint.key(),

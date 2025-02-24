@@ -77,9 +77,11 @@ pub fn swap_handler(
         } else {
             amount_out
         };
-        if amount_received < minimum_amount_out {
-            return Err(SwapError::ExceededSlippage.into());
-        }
+        require_gte!(
+            amount_received,
+            minimum_amount_out,
+            SwapError::ExceededSlippage
+        );
         (
             amount_received,
             ctx.accounts.destination_token_mint.decimals,
@@ -99,7 +101,7 @@ pub fn swap_handler(
         CpiContext::new(
             ctx.accounts.token_source_program.to_account_info(),
             anchor_spl::token_interface::TransferChecked {
-                from: ctx.accounts.source.to_account_info(),
+                from: ctx.accounts.user_source.to_account_info(),
                 to: ctx.accounts.swap_source.to_account_info(),
                 authority: ctx.accounts.user_transfer_authority.to_account_info(),
                 mint: ctx.accounts.source_token_mint.to_account_info(),
@@ -110,7 +112,7 @@ pub fn swap_handler(
     )?;
 
     if result.owner_fee > 0 {
-        let pool_token_amount = swap_curve
+        let mut pool_token_amount = swap_curve
             .calculator
             .withdraw_single_token_type_exact_out(
                 result.owner_fee,
@@ -121,6 +123,7 @@ pub fn swap_handler(
                 RoundDirection::Floor,
             )
             .ok_or(SwapError::FeeCalculationFailure)?;
+
         if let Some(host_fee_account) = &ctx.accounts.host_fee_account {
             let host_fee = ctx
                 .accounts
@@ -129,7 +132,7 @@ pub fn swap_handler(
                 .host_fee(pool_token_amount)
                 .ok_or(SwapError::FeeCalculationFailure)?;
             if host_fee > 0 {
-                pool_token_amount
+                pool_token_amount = pool_token_amount
                     .checked_sub(host_fee)
                     .ok_or(SwapError::FeeCalculationFailure)?;
                 anchor_spl::token_interface::mint_to(
@@ -148,12 +151,14 @@ pub fn swap_handler(
                     to_u64(host_fee)?,
                 )?;
             }
+        }
+        if let Some(pool_fee_account) = &ctx.accounts.pool_fee_account {
             anchor_spl::token_interface::mint_to(
                 CpiContext::new_with_signer(
                     ctx.accounts.token_pool_program.to_account_info(),
                     anchor_spl::token_interface::MintTo {
                         mint: ctx.accounts.pool_mint.to_account_info(),
-                        to: ctx.accounts.pool_fee_account.to_account_info(),
+                        to: pool_fee_account.to_account_info(),
                         authority: ctx.accounts.authority.to_account_info(),
                     },
                     &[&[
@@ -164,8 +169,6 @@ pub fn swap_handler(
                 to_u64(pool_token_amount)?,
             )?;
         }
-        // let host_fee =
-        // ctx.accounts.token_swap.fees().host_fee(pool_token_amount);
     }
 
     anchor_spl::token_interface::transfer_checked(
@@ -173,7 +176,7 @@ pub fn swap_handler(
             ctx.accounts.token_destination_program.to_account_info(),
             anchor_spl::token_interface::TransferChecked {
                 from: ctx.accounts.swap_destination.to_account_info(),
-                to: ctx.accounts.destination.to_account_info(),
+                to: ctx.accounts.user_destination.to_account_info(),
                 authority: ctx.accounts.authority.to_account_info(),
                 mint: ctx.accounts.destination_token_mint.to_account_info(),
             },
@@ -204,9 +207,9 @@ pub struct TokenSwap<'info> {
     #[account(
         mut,
         token::mint = swap_source.mint,
-       constraint = source.key() != swap_source.key() @ SwapError::InvalidInput
+       constraint = user_source.key() != swap_source.key() @ SwapError::InvalidInput
     )]
-    pub source: InterfaceAccount<'info, TokenAccount>,
+    pub user_source: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut,
@@ -220,9 +223,9 @@ pub struct TokenSwap<'info> {
     #[account(
         mut,
         token::mint = swap_destination.mint,
-        constraint = destination.key() != swap_destination.key() @ SwapError::SameAccountTransfer
+        constraint = user_destination.key() != swap_destination.key() @ SwapError::SameAccountTransfer
     )]
-    pub destination: InterfaceAccount<'info, TokenAccount>,
+    pub user_destination: InterfaceAccount<'info, TokenAccount>,
     #[account(
         mut,
         token::mint = swap_destination.mint,
@@ -248,7 +251,7 @@ pub struct TokenSwap<'info> {
         token::mint = pool_mint.key(),
         constraint = pool_fee_account.key() == token_swap.pool_fee_account.key() @ SwapError::InvalidFeeAccount
     )]
-    pub pool_fee_account: InterfaceAccount<'info, TokenAccount>,
+    pub pool_fee_account: Option<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mint::token_program = token_source_program.key(),
     )]

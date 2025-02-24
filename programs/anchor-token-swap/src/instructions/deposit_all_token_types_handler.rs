@@ -23,7 +23,7 @@ pub fn deposit_all_token_types_handler(
     let current_pool_supply = ctx.accounts.pool_mint.supply as u128;
 
     let (pool_token_amount, pool_mint_supply) = if current_pool_supply > 0 {
-        (pool_token_amount as u128, current_pool_supply)
+        (u128::from(pool_token_amount), current_pool_supply)
     } else {
         (calculator.new_pool_supply(), calculator.new_pool_supply())
     };
@@ -31,8 +31,8 @@ pub fn deposit_all_token_types_handler(
         .pool_tokens_to_trading_tokens(
             pool_token_amount,
             pool_mint_supply,
-            ctx.accounts.token_a.amount as u128,
-            ctx.accounts.token_b.amount as u128,
+            u128::from(ctx.accounts.token_a.amount),
+            u128::from(ctx.accounts.token_b.amount),
             RoundDirection::Ceiling,
         )
         .ok_or(SwapError::ZeroTradingTokens)?;

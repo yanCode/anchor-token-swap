@@ -20,8 +20,7 @@ import {
   SystemProgram,
   Transaction,
 } from "@solana/web3.js";
-
-let currentFeeAmount = 0n;
+import { assert } from "chai";
 
 // Pool fees
 const TRADING_FEE_NUMERATOR = 25;
@@ -34,11 +33,11 @@ const HOST_FEE_NUMERATOR = 20;
 const HOST_FEE_DENOMINATOR = 100;
 
 // Pool token amount minted on init
-// const DEFAULT_POOL_TOKEN_AMOUNT = 1000000000n;
-// Pool token amount to withdraw / deposit
-const POOL_TOKEN_AMOUNT = 10000000;
+const DEFAULT_POOL_TOKEN_AMOUNT = 1000000000n;
+// Pool token amount to withdraw / deposit, which is 1% of `DEFAULT_POOL_TOKEN_AMOUNT`
+const TEST_POOL_TOKEN_AMOUNT = 10000000n;
 const SWAP_AMOUNT_IN = 100000n;
-// const SWAP_AMOUNT_OUT = SWAP_PROGRAM_OWNER_FEE_ADDRESS ? 90661n : 90674n;
+const EXPECTED_SWAP_AMOUNT_OUT = 90661n;
 
 describe("anchor-token-swap", () => {
   const provider = anchor.AnchorProvider.env();
@@ -79,15 +78,32 @@ describe("anchor-token-swap", () => {
         swapTokenA: tokenSwapTest.swapTokenA,
         swapTokenB: tokenSwapTest.swapTokenB,
         poolMint: tokenSwapTest.poolMint,
-        poolTokenReciever: tokenSwapTest.userPoolTokenReciever,
+        userPoolToken: tokenSwapTest.userPoolTokenAccount,
         poolFeeAccount: tokenSwapTest.poolFeeAccount,
         tokenPoolProgram: TOKEN_2022_PROGRAM_ID,
       })
       .signers([tokenSwapTest.tokenSwapAccount])
       .rpc();
+
+    const userPoolTokenReciever = await tokenSwapTest.getAccount(
+      connection,
+      tokenSwapTest.userPoolTokenAccount
+    );
+
+    assert.equal(
+      userPoolTokenReciever.amount,
+      BigInt(DEFAULT_POOL_TOKEN_AMOUNT)
+    );
+    const poolMint = await tokenSwapTest.getPoolMint(connection);
+    assert.equal(poolMint.supply, BigInt(DEFAULT_POOL_TOKEN_AMOUNT));
+    const swapV1 = await program.account.swapV1.fetch(
+      tokenSwapTest.tokenSwapAccount.publicKey
+    );
+    assert.ok(swapV1.fees.tradeFeeNumerator.eq(new BN(TRADING_FEE_NUMERATOR)));
+    assert.ok(swapV1.tokenA.equals(tokenSwapTest.swapTokenA));
   });
 
-  it("it should depositAllTokenTypes", async () => {
+  it("It should depositAllTokenTypes", async () => {
     const poolMint = await tokenSwapTest.getPoolMint(connection);
     const supply = poolMint.supply;
 
@@ -106,10 +122,10 @@ describe("anchor-token-swap", () => {
       ),
     ]);
 
-    const amountOftokenA =
-      (swapTokenA.amount * BigInt(POOL_TOKEN_AMOUNT)) / supply;
-    const amountOftokenB =
-      (swapTokenB.amount * BigInt(POOL_TOKEN_AMOUNT)) / supply;
+    const amountOftokenAToDeposit =
+      (swapTokenA.amount * BigInt(TEST_POOL_TOKEN_AMOUNT)) / supply;
+    const amountOftokenBToDeposit =
+      (swapTokenB.amount * BigInt(TEST_POOL_TOKEN_AMOUNT)) / supply;
     const userTransferAuthority = Keypair.generate();
     const [userAccountA, userAccountB] = await tokenSwapTest.createTokenPair(
       connection
@@ -118,19 +134,19 @@ describe("anchor-token-swap", () => {
       connection,
       userAccountA,
       userAccountB,
-      amountOftokenA,
-      amountOftokenB
+      amountOftokenAToDeposit,
+      amountOftokenBToDeposit
     );
     await tokenSwapTest.approveForPair(
       connection,
       userAccountA,
       userAccountB,
       userTransferAuthority.publicKey,
-      amountOftokenA,
-      amountOftokenB
+      amountOftokenAToDeposit,
+      amountOftokenBToDeposit
     );
 
-    const newAccountPoolToken = await createAccount(
+    const userPoolToken = await createAccount(
       connection,
       tokenSwapTest.payer,
       tokenSwapTest.poolMint,
@@ -142,9 +158,9 @@ describe("anchor-token-swap", () => {
 
     await program.methods
       .depositAllTokenTypes(
-        new BN(POOL_TOKEN_AMOUNT.toString()),
-        new BN(amountOftokenA.toString()),
-        new BN(amountOftokenB.toString())
+        new BN(TEST_POOL_TOKEN_AMOUNT.toString()),
+        new BN(amountOftokenAToDeposit.toString()),
+        new BN(amountOftokenBToDeposit.toString())
       )
       .accounts({
         payer: tokenSwapTest.payer.publicKey,
@@ -157,7 +173,7 @@ describe("anchor-token-swap", () => {
         tokenAMint: tokenSwapTest.mintA,
         tokenBMint: tokenSwapTest.mintB,
         poolMint: tokenSwapTest.poolMint,
-        destination: newAccountPoolToken,
+        destination: userPoolToken,
         poolFeeAccount: tokenSwapTest.poolFeeAccount,
         tokenPoolProgram: TOKEN_2022_PROGRAM_ID,
         tokenAProgram: TOKEN_2022_PROGRAM_ID,
@@ -165,23 +181,40 @@ describe("anchor-token-swap", () => {
       })
       .signers([tokenSwapTest.payer, userTransferAuthority])
       .rpc({ commitment: "confirmed" });
+    const userAInfo = await tokenSwapTest.getAccount(connection, userAccountA);
+    assert(userAInfo.amount == 0n);
+    const userBInfo = await tokenSwapTest.getAccount(connection, userAccountB);
+    assert(userBInfo.amount == 0n);
+    tokenSwapTest.amountOfCurrentSwapToken.a += amountOftokenAToDeposit;
+    tokenSwapTest.amountOfCurrentSwapToken.b += amountOftokenBToDeposit;
+    const swapTokenAInfo = await tokenSwapTest.getAccount(
+      connection,
+      tokenSwapTest.swapTokenA
+    );
+    assert(swapTokenAInfo.amount == tokenSwapTest.amountOfCurrentSwapToken.a);
+    const userPoolTokenInfo = await tokenSwapTest.getAccount(
+      connection,
+      userPoolToken
+    );
+    assert(userPoolTokenInfo.amount == TEST_POOL_TOKEN_AMOUNT);
   });
 
-  it("it should withdrawAllTokenTypes", async () => {
+  it("It should withdrawAllTokenTypes", async () => {
     const poolMint = await tokenSwapTest.getPoolMint(connection);
     const supply = poolMint.supply;
 
     const [swapTokenA, swapTokenB] = await tokenSwapTest.getSwapTokenAccounts(
       connection
     );
-    let feeAmount =
-      (BigInt(POOL_TOKEN_AMOUNT) * BigInt(OWNER_WITHDRAW_FEE_NUMERATOR)) /
-      BigInt(OWNER_WITHDRAW_FEE_DENOMINATOR);
+    // let feeAmount =
+    //   (BigInt(TEST_POOL_TOKEN_AMOUNT) * BigInt(OWNER_WITHDRAW_FEE_NUMERATOR)) /
+    //   BigInt(OWNER_WITHDRAW_FEE_DENOMINATOR);//todo test pool fee account
 
-    const poolTokenAmount = BigInt(POOL_TOKEN_AMOUNT) - BigInt(feeAmount);
-    const amountOftokenA =
+    let feeAmount = 0n;
+    const poolTokenAmount = BigInt(TEST_POOL_TOKEN_AMOUNT) - BigInt(feeAmount);
+    const expectedWithdrawAmountOftokenA =
       (swapTokenA.amount * BigInt(poolTokenAmount)) / supply;
-    const amountOftokenB =
+    const expectedWithdrawAmountOftokenB =
       (swapTokenB.amount * BigInt(poolTokenAmount)) / supply;
     const [userAccountA, userAccountB] = await tokenSwapTest.createTokenPair(
       connection
@@ -191,20 +224,20 @@ describe("anchor-token-swap", () => {
     await approve(
       connection,
       tokenSwapTest.payer,
-      tokenSwapTest.userPoolTokenReciever, //todo use a new account for the receiver
+      tokenSwapTest.userPoolTokenAccount,
       userTransferAuthority.publicKey,
       tokenSwapTest.owner,
-      POOL_TOKEN_AMOUNT,
+      TEST_POOL_TOKEN_AMOUNT,
       [],
       undefined,
       TOKEN_2022_PROGRAM_ID
     );
 
-    const tx = await program.methods
+    await program.methods
       .withdrawAllTokenTypes(
-        new BN(POOL_TOKEN_AMOUNT.toString()),
-        new BN(amountOftokenA.toString()),
-        new BN(amountOftokenB.toString())
+        new BN(TEST_POOL_TOKEN_AMOUNT.toString()),
+        new BN(expectedWithdrawAmountOftokenA.toString()),
+        new BN(expectedWithdrawAmountOftokenB.toString())
       )
       .accounts({
         payer: tokenSwapTest.payer.publicKey,
@@ -212,21 +245,39 @@ describe("anchor-token-swap", () => {
         userTransferAuthority: userTransferAuthority.publicKey,
         destinationA: userAccountA,
         destinationB: userAccountB,
-        userPoolTokenSource: tokenSwapTest.userPoolTokenReciever,
+        userPoolTokenSource: tokenSwapTest.userPoolTokenAccount,
         swapTokenA: tokenSwapTest.swapTokenA,
         swapTokenB: tokenSwapTest.swapTokenB,
         tokenAMint: tokenSwapTest.mintA,
         tokenBMint: tokenSwapTest.mintB,
         poolMint: tokenSwapTest.poolMint,
-        poolFeeAccount: tokenSwapTest.poolFeeAccount,
+        poolFeeAccount: null,
+        // poolFeeAccount: tokenSwapTest.poolFeeAccount,
         tokenPoolProgram: TOKEN_2022_PROGRAM_ID,
         tokenAProgram: TOKEN_2022_PROGRAM_ID,
         tokenBProgram: TOKEN_2022_PROGRAM_ID,
       })
       .signers([tokenSwapTest.payer, userTransferAuthority])
       .rpc();
+
+    const [swapTokenAInfo, swapTokenBInfo] =
+      await tokenSwapTest.getSwapTokenAccounts(connection);
+    tokenSwapTest.amountOfCurrentSwapToken.a -= expectedWithdrawAmountOftokenA;
+    tokenSwapTest.amountOfCurrentSwapToken.b -= expectedWithdrawAmountOftokenB;
+    assert(swapTokenAInfo.amount == tokenSwapTest.amountOfCurrentSwapToken.a);
+    assert(swapTokenBInfo.amount == tokenSwapTest.amountOfCurrentSwapToken.b);
+    const userAccountAInfo = await tokenSwapTest.getAccount(
+      connection,
+      userAccountA
+    );
+    assert(userAccountAInfo.amount == expectedWithdrawAmountOftokenA);
+    const userAccountBInfo = await tokenSwapTest.getAccount(
+      connection,
+      userAccountB
+    );
+    assert(userAccountBInfo.amount == expectedWithdrawAmountOftokenB);
   });
-  it("it should create account & swap in a single tx", async () => {
+  it("It should create account & swap in a single tx", async () => {
     const sourceUserAccountA = Keypair.generate();
     const mintAProgramId = (
       await connection.getAccountInfo(tokenSwapTest.mintA, "confirmed")
@@ -295,13 +346,16 @@ describe("anchor-token-swap", () => {
       mintAProgramId
     );
     let swapInstruction = await program.methods
-      .swap(new BN(SWAP_AMOUNT_IN.toString()), new BN(0))
+      .swap(
+        new BN(SWAP_AMOUNT_IN.toString()),
+        new BN(EXPECTED_SWAP_AMOUNT_OUT.toString())
+      )
       .accounts({
         tokenSwap: tokenSwapTest.tokenSwapAccount.publicKey,
         swapSource: tokenSwapTest.swapTokenA,
-        source: sourceUserAccountA.publicKey,
+        userSource: sourceUserAccountA.publicKey,
         swapDestination: tokenSwapTest.swapTokenB,
-        destination: userDestinationTokenB.publicKey,
+        userDestination: userDestinationTokenB.publicKey,
         poolMint: tokenSwapTest.poolMint,
         poolFeeAccount: tokenSwapTest.poolFeeAccount,
         userTransferAuthority: userTransferAuthority.publicKey,
@@ -313,7 +367,6 @@ describe("anchor-token-swap", () => {
         tokenPoolProgram: TOKEN_2022_PROGRAM_ID,
       })
       .instruction();
-
     const tx = new Transaction();
     tx.add(createSystemAccountForUserTokenAInstruction);
     tx.add(createInitializeSwapTokenAInstruction);
@@ -330,5 +383,179 @@ describe("anchor-token-swap", () => {
       userDestinationTokenB,
       userTransferAuthority,
     ]);
+    const userDestinationTokenBInfo = await tokenSwapTest.getAccount(
+      connection,
+      userDestinationTokenB.publicKey
+    );
+    assert.equal(userDestinationTokenBInfo.amount, EXPECTED_SWAP_AMOUNT_OUT);
+    const userSourceTokenAInfo = await tokenSwapTest.getAccount(
+      connection,
+      sourceUserAccountA.publicKey
+    );
+    assert.equal(userSourceTokenAInfo.amount, 0n);
+    tokenSwapTest.amountOfCurrentSwapToken.a += SWAP_AMOUNT_IN;
+    tokenSwapTest.amountOfCurrentSwapToken.b -= EXPECTED_SWAP_AMOUNT_OUT;
+    const [swapTokenAInfo, swapTokenBInfo] =
+      await tokenSwapTest.getSwapTokenAccounts(connection);
+    assert.equal(
+      swapTokenAInfo.amount,
+      tokenSwapTest.amountOfCurrentSwapToken.a
+    );
+    assert.equal(
+      swapTokenBInfo.amount,
+      tokenSwapTest.amountOfCurrentSwapToken.b
+    );
+  });
+  it("It should depositSingleTokenTypeExactAmountIn", async () => {
+    // process.exit(0);
+    // Pool token amount to deposit on one side
+    const depositAmount = 10000n;
+
+    const userTransferAuthority = Keypair.generate();
+    const [userAccountA, userAccountB] = await tokenSwapTest.createTokenPair(
+      connection
+    );
+    await tokenSwapTest.mintToTokenPair(
+      connection,
+      userAccountA,
+      userAccountB,
+      depositAmount,
+      depositAmount
+    );
+    await tokenSwapTest.approveForPair(
+      connection,
+      userAccountA,
+      userAccountB,
+      userTransferAuthority.publicKey,
+      depositAmount,
+      depositAmount
+    );
+    // const destinationTokenAccount = await createAccount(
+    //   connection,
+    //   tokenSwapTest.payer,
+    //   tokenSwapTest.poolMint,
+    //   tokenSwapTest.owner.publicKey,
+    //   Keypair.generate(),
+    //   undefined,
+    //   TOKEN_2022_PROGRAM_ID
+    // );
+    await program.methods
+      .depositSingleTokenTypeExactAmountIn(
+        new BN(depositAmount.toString()),
+        new BN(0)
+      )
+      .accounts({
+        payer: tokenSwapTest.payer.publicKey,
+        swapV1: tokenSwapTest.tokenSwapAccount.publicKey,
+        userTransferAuthority: userTransferAuthority.publicKey,
+        source: userAccountA,
+        sourceTokenMint: tokenSwapTest.mintA,
+        swapTokenA: tokenSwapTest.swapTokenA,
+        swapTokenB: tokenSwapTest.swapTokenB,
+        sourceTokenProgram: TOKEN_2022_PROGRAM_ID,
+        tokenPoolProgram: TOKEN_2022_PROGRAM_ID,
+        poolMint: tokenSwapTest.poolMint,
+        poolTokenDestination: tokenSwapTest.userPoolTokenAccount,
+      })
+      .signers([tokenSwapTest.payer, userTransferAuthority])
+      .rpc();
+    const userAccountAInfo = await tokenSwapTest.getAccount(
+      connection,
+      userAccountA
+    );
+    assert.equal(userAccountAInfo.amount, 0n);
+    tokenSwapTest.amountOfCurrentSwapToken.a += depositAmount;
+    const swapTokenAInfo = await tokenSwapTest.getAccount(
+      connection,
+      tokenSwapTest.swapTokenA
+    );
+    assert.equal(
+      swapTokenAInfo.amount,
+      tokenSwapTest.amountOfCurrentSwapToken.a
+    );
+
+    await program.methods
+      .depositSingleTokenTypeExactAmountIn(
+        new BN(depositAmount.toString()),
+        new BN(0)
+      )
+      .accounts({
+        payer: tokenSwapTest.payer.publicKey,
+        swapV1: tokenSwapTest.tokenSwapAccount.publicKey,
+        userTransferAuthority: userTransferAuthority.publicKey,
+        source: userAccountB,
+        sourceTokenMint: tokenSwapTest.mintB,
+        swapTokenA: tokenSwapTest.swapTokenA,
+        swapTokenB: tokenSwapTest.swapTokenB,
+        sourceTokenProgram: TOKEN_2022_PROGRAM_ID,
+        tokenPoolProgram: TOKEN_2022_PROGRAM_ID,
+        poolMint: tokenSwapTest.poolMint,
+        poolTokenDestination: tokenSwapTest.userPoolTokenAccount,
+      })
+      .signers([tokenSwapTest.payer, userTransferAuthority])
+      .rpc();
+
+    const userAccountBInfo = await tokenSwapTest.getAccount(
+      connection,
+      userAccountB
+    );
+    assert.equal(userAccountBInfo.amount, 0n);
+    tokenSwapTest.amountOfCurrentSwapToken.b += depositAmount;
+    const swapTokenBInfo = await tokenSwapTest.getAccount(
+      connection,
+      tokenSwapTest.swapTokenB
+    );
+    assert.equal(
+      swapTokenBInfo.amount,
+      tokenSwapTest.amountOfCurrentSwapToken.b
+    );
+  });
+
+  it("It should withdrawSingleTokenTypeExactAmountIn", async () => {
+    // Pool token amount to withdraw on one side
+    const withdrawAmount = 50000n;
+    const adjustedPoolTokenA = 1_000_000_000_000n;
+    const adjustedPoolTokenB = 1_000_000_000_000n;
+    const userTransferAuthority = Keypair.generate();
+    const [_, userAccountB] = await tokenSwapTest.createTokenPair(connection);
+    await approve(
+      connection,
+      tokenSwapTest.payer,
+      tokenSwapTest.userPoolTokenAccount,
+      userTransferAuthority.publicKey,
+      tokenSwapTest.owner,
+      adjustedPoolTokenA + adjustedPoolTokenB,
+      [],
+      undefined,
+      TOKEN_2022_PROGRAM_ID
+    );
+    await program.methods
+      .withdrawSingleTokenTypeExactAmountOut(
+        new BN(withdrawAmount.toString()),
+        new BN(adjustedPoolTokenB.toString())
+      )
+      .accounts({
+        payer: tokenSwapTest.payer.publicKey,
+        swapV1: tokenSwapTest.tokenSwapAccount.publicKey,
+        poolTokenSource: tokenSwapTest.userPoolTokenAccount,
+        userTransferAuthority: userTransferAuthority.publicKey,
+        userTokenDestination: userAccountB,
+        swapTokenA: tokenSwapTest.swapTokenA,
+        swapTokenB: tokenSwapTest.swapTokenB,
+        poolMint: tokenSwapTest.poolMint,
+        tokenAMint: tokenSwapTest.mintA,
+        tokenBMint: tokenSwapTest.mintB,
+        tokenPoolProgram: TOKEN_2022_PROGRAM_ID,
+        destinationTokenMint: tokenSwapTest.mintB,
+        destinationTokenProgram: TOKEN_2022_PROGRAM_ID,
+        poolFeeAccount: null,
+      })
+      .signers([tokenSwapTest.payer, userTransferAuthority])
+      .rpc();
+    const userAccountBInfo = await tokenSwapTest.getAccount(
+      connection,
+      userAccountB
+    );
+    assert.equal(userAccountBInfo.amount, withdrawAmount);
   });
 });

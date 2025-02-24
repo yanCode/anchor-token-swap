@@ -11,8 +11,8 @@ use {
 pub fn withdraw_all_token_types_handler(
     ctx: Context<WithdrawAllTokenTypes>,
     pool_token_amount: u64,
-    slippage_a_amount: u64,
-    slippage_b_amount: u64,
+    min_a_amount_slippage: u64,
+    min_b_amount_slippage: u64,
 ) -> Result<()> {
     let swap_curve = SwapCurve::new(ctx.accounts.swap_v1.curve_type);
     let calculator = swap_curve.calculator;
@@ -49,7 +49,7 @@ pub fn withdraw_all_token_types_handler(
     token_a_amount = min(token_a_amount, ctx.accounts.swap_token_a.amount);
     require_gte!(
         token_a_amount,
-        slippage_a_amount,
+        min_a_amount_slippage,
         SwapError::ExceededSlippage
     );
     require!(
@@ -60,7 +60,7 @@ pub fn withdraw_all_token_types_handler(
     token_b_amount = min(token_b_amount, ctx.accounts.swap_token_b.amount);
     require_gte!(
         token_b_amount,
-        slippage_b_amount,
+        min_b_amount_slippage,
         SwapError::ExceededSlippage
     );
     require!(

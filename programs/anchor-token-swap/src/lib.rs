@@ -68,16 +68,16 @@ pub mod anchor_token_swap {
         )
     }
     pub fn withdraw_single_token_type_exact_amount_out(
-        _ctx: Context<WithdrawSingleTokenTypeExactAmountOut>,
+        ctx: Context<WithdrawSingleTokenTypeExactAmountOut>,
+        destination_token_amount: u64,
+        maximum_pool_token_amount: u64,
     ) -> Result<()> {
-        todo!()
+        instructions::withdraw_single_token_type_exact_amount_out_handler(
+            ctx,
+            destination_token_amount,
+            maximum_pool_token_amount,
+        )
     }
-}
-
-#[derive(Accounts)]
-pub struct WithdrawSingleTokenTypeExactAmountOut<'info> {
-    #[account(mut)]
-    pub payer: Signer<'info>,
 }
 
 pub fn to_u64(amount: u128) -> Result<u64> {

@@ -57,8 +57,8 @@ pub fn deposit_single_token_type_exact_amount_in_handler(
         return err!(SwapError::ExceededSlippage);
     }
     let to_swap_account_info = match trade_direction {
-        TradeDirection::AtoB => ctx.accounts.swap_token_b.to_account_info(),
-        TradeDirection::BtoA => ctx.accounts.swap_token_a.to_account_info(),
+        TradeDirection::AtoB => ctx.accounts.swap_token_a.to_account_info(),
+        TradeDirection::BtoA => ctx.accounts.swap_token_b.to_account_info(),
     };
 
     anchor_spl::token_interface::transfer_checked(
@@ -80,7 +80,7 @@ pub fn deposit_single_token_type_exact_amount_in_handler(
             ctx.accounts.token_pool_program.to_account_info(),
             anchor_spl::token_interface::MintTo {
                 mint: ctx.accounts.pool_mint.to_account_info(),
-                to: ctx.accounts.destination.to_account_info(),
+                to: ctx.accounts.pool_token_destination.to_account_info(),
                 authority: ctx.accounts.authority.to_account_info(),
             },
             &[&[
@@ -134,7 +134,7 @@ pub struct DepositSingleTokenType<'info> {
       mut,
       token::mint = pool_mint.key()
     )]
-    pub destination: InterfaceAccount<'info, TokenAccount>,
+    pub pool_token_destination: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mint::token_program = source_token_program.key(),

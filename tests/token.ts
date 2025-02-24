@@ -54,14 +54,18 @@ export class TokenSwapTest {
   payer: Keypair;
   poolMint: PublicKey;
   //only use for receiver of the pool token during init
-  userPoolTokenReciever: PublicKey;
+  userPoolTokenAccount: PublicKey;
   poolFeeAccount: PublicKey;
+  amountOfCurrentSwapToken: { a: bigint; b: bigint };
   constructor() {}
   public static async init(connection: Connection, programId: PublicKey) {
     let test = new TokenSwapTest();
     test.owner = Keypair.generate();
     test.payer = Keypair.generate();
-
+    test.amountOfCurrentSwapToken = {
+      a: amountOfCurrentSwapTokenA,
+      b: amountOfCurrentSwapTokenB,
+    };
     // Airdrop transactions
     await Promise.all([
       airdrop_and_confirm(test.owner.publicKey, connection),
@@ -155,7 +159,7 @@ export class TokenSwapTest {
           TOKEN_2022_PROGRAM_ID
         ),
       ]);
-    test.userPoolTokenReciever = userPoolTokenReciever;
+    test.userPoolTokenAccount = userPoolTokenReciever;
     test.poolFeeAccount = poolFeeAccount;
     test.swapTokenA = swapTokenA;
     test.swapTokenB = swapTokenB;
@@ -168,7 +172,7 @@ export class TokenSwapTest {
         test.mintA,
         test.swapTokenA,
         test.owner,
-        amountOfCurrentSwapTokenA,
+        test.amountOfCurrentSwapToken.a,
         [],
         undefined,
         TOKEN_2022_PROGRAM_ID
@@ -179,7 +183,7 @@ export class TokenSwapTest {
         test.mintB,
         test.swapTokenB,
         test.owner,
-        amountOfCurrentSwapTokenB,
+        test.amountOfCurrentSwapToken.b,
         [],
         undefined,
         TOKEN_2022_PROGRAM_ID
@@ -188,7 +192,7 @@ export class TokenSwapTest {
 
     return test;
   }
-  private async getAccount(
+  public async getAccount(
     connection: Connection,
     key: PublicKey
   ): Promise<TokenAccount> {
