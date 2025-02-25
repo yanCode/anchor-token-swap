@@ -52,6 +52,11 @@ This `token-swap` project is rewritten using [Anchor](https://www.anchor-lang.co
 - integration test: `anchor test` (make sure `yarn install` has been executed to ensure all javascript/typescript dependencies are installed)
 - run two above tests in one go: `yarn test`
 
+## Todo
+- [ ] Add tests on curves including `constant_price` and `offset`
+- [ ] Add tests on both `spl-token` and `spl-token-2022`, all the mints can use each of the token programs.
+- [ ] Add tests related to `bpf-upgradeable`
+
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
