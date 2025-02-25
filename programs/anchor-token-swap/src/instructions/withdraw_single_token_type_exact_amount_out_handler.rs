@@ -68,29 +68,26 @@ pub fn withdraw_single_token_type_exact_amount_out_handler(
     if pool_token_amount == 0 {
         return err!(SwapError::ZeroTradingTokens);
     }
-    if withdraw_fee > 0 && ctx.accounts.pool_fee_account.is_some() {
-        anchor_spl::token_interface::transfer_checked(
-            CpiContext::new_with_signer(
-                ctx.accounts.destination_token_program.to_account_info(),
-                anchor_spl::token_interface::TransferChecked {
-                    from: ctx.accounts.user_token_destination.to_account_info(),
-                    to: ctx
-                        .accounts
-                        .pool_fee_account
-                        .as_ref()
-                        .unwrap()
-                        .to_account_info(),
-                    authority: ctx.accounts.authority.to_account_info(),
-                    mint: ctx.accounts.destination_token_mint.to_account_info(),
-                },
-                &[&[
-                    &ctx.accounts.swap_v1.key().to_bytes(),
-                    &[ctx.bumps.authority],
-                ]],
-            ),
-            to_u64(withdraw_fee)?,
-            ctx.accounts.destination_token_mint.decimals,
-        )?;
+    if withdraw_fee > 0 {
+        if let Some(pool_fee_account) = &ctx.accounts.pool_fee_account {
+            anchor_spl::token_interface::transfer_checked(
+                CpiContext::new_with_signer(
+                    ctx.accounts.destination_token_program.to_account_info(),
+                    anchor_spl::token_interface::TransferChecked {
+                        from: ctx.accounts.user_token_destination.to_account_info(),
+                        to: pool_fee_account.to_account_info(),
+                        authority: ctx.accounts.authority.to_account_info(),
+                        mint: ctx.accounts.destination_token_mint.to_account_info(),
+                    },
+                    &[&[
+                        &ctx.accounts.swap_v1.key().to_bytes(),
+                        &[ctx.bumps.authority],
+                    ]],
+                ),
+                to_u64(withdraw_fee)?,
+                ctx.accounts.destination_token_mint.decimals,
+            )?;
+        }
     }
     anchor_spl::token_interface::burn_checked(
         CpiContext::new(
