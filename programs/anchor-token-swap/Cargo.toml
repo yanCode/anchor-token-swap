@@ -16,6 +16,7 @@ idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
+upgradable-test = []
 [dependencies]
 anchor-lang = {git = "https://github.com/coral-xyz/anchor", rev = "a7a23eea"}
 anchor-spl = {git = "https://github.com/coral-xyz/anchor", rev = "a7a23eea"}

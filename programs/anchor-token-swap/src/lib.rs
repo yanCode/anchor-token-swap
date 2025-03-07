@@ -78,6 +78,16 @@ pub mod anchor_token_swap {
             maximum_pool_token_amount,
         )
     }
+    #[cfg(feature = "upgradable-test")]
+    pub fn upgrade_verifier(_ctx: Context<UpgradableVerifier>) -> Result<()> {
+        Ok(())
+    }
+    #[cfg(feature = "upgradable-test")]
+    #[derive(Accounts)]
+    pub struct UpgradableVerifier<'info> {
+        #[account(mut)]
+        pub authority: Signer<'info>,
+    }
 }
 
 pub fn to_u64(amount: u128) -> Result<u64> {
