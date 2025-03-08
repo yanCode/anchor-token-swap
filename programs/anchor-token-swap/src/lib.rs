@@ -1,5 +1,6 @@
 pub mod curves;
 mod errors;
+pub mod helper;
 pub mod instructions;
 
 mod state;
@@ -11,7 +12,10 @@ declare_id!("Bspu3p7dUX27mCSG5jaQkqoVwA6V2fMB9zZNpfu2dY9J");
 #[program]
 pub mod anchor_token_swap {
 
-    use {super::*, crate::curves::CurveType};
+    use {
+        super::*,
+        crate::curves::CurveType,
+    };
 
     #[access_control(
         validate_swap_constraints(

@@ -1,5 +1,5 @@
 use {
-    crate::{curves::TradeDirection, to_u64, SwapError, SwapState, SwapV1},
+    crate::{curves::TradeDirection, helper::to_u64, SwapError, SwapState, SwapV1},
     anchor_lang::prelude::*,
     anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface},
 };
