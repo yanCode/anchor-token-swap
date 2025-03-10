@@ -7,7 +7,7 @@
     "test": "cargo test && anchor test"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "^0.30.1",
+    "@coral-xyz/anchor": "0.31.0",
     "@solana/spl-token": "^0.4.12"
   },
   "lint-staged": {

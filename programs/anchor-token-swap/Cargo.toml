@@ -17,8 +17,8 @@ no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 [dependencies]
-anchor-lang = {git = "https://github.com/coral-xyz/anchor", rev = "a7a23eea"}
-anchor-spl = {git = "https://github.com/coral-xyz/anchor", rev = "a7a23eea"}
+anchor-lang = {version = "0.31.0"}
+anchor-spl = {version = "0.31.0"}
 spl-math = {version = "0.3.0", features = ["no-entrypoint"]}
 
 [dev-dependencies]
