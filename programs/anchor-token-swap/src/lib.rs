@@ -7,15 +7,14 @@ mod state;
 mod swap_constraints;
 use {crate::curves::CurveType, anchor_lang::prelude::*};
 pub use {errors::*, instructions::*, state::*, swap_constraints::*};
-declare_id!("Bspu3p7dUX27mCSG5jaQkqoVwA6V2fMB9zZNpfu2dY9J");
+declare_id!("HUYZTGf7FbXt6A28HhvhMiN5SnFGBKe5F9t8Lqw7KSeG");
 
 #[program]
 pub mod anchor_token_swap {
 
-    use {
-        super::*,
-        crate::curves::CurveType,
-    };
+    #[cfg(feature = "upgradable-test")]
+    use crate::program::AnchorTokenSwap;
+    use {super::*, crate::curves::CurveType};
 
     #[access_control(
         validate_swap_constraints(
@@ -90,12 +89,15 @@ pub mod anchor_token_swap {
     #[derive(Accounts)]
     pub struct UpgradableVerifier<'info> {
         #[account(mut)]
-        pub authority: Signer<'info>,
+        pub payer: Signer<'info>,
+        #[account(
+            constraint = program.programdata_address()? == Some(program_data.key())
+        )]
+        pub program: Program<'info, AnchorTokenSwap>,
+        #[account(
+            constraint = program_data.upgrade_authority_address == Some(payer.key())
+        )]
+        pub program_data: Account<'info, ProgramData>,
+        pub system_program: Program<'info, System>,
     }
-}
-
-pub fn to_u64(amount: u128) -> Result<u64> {
-    amount
-        .try_into()
-        .map_err(|_| SwapError::ConversionFailure.into())
 }

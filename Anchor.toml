@@ -5,14 +5,15 @@ resolution = true
 skip-lint = true
 
 [programs.localnet]
-anchor_token_swap = "Bspu3p7dUX27mCSG5jaQkqoVwA6V2fMB9zZNpfu2dY9J"
+anchor_token_swap = "HUYZTGf7FbXt6A28HhvhMiN5SnFGBKe5F9t8Lqw7KSeG"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Localnet"
+cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.spec.ts"
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/anchor-token-swap/*.spec.ts"
+test-upgradable = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/upgradable/**/upgradable.spec.ts"
