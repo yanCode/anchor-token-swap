@@ -1,7 +1,8 @@
 use {
     crate::{
         curves::{CurveType, SwapCurve},
-        to_u64, Fees, SwapError, SwapV1,
+        helper::to_u64,
+        Fees, SwapError, SwapV1,
     },
     anchor_lang::prelude::*,
     anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface},
